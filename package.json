@@ -2,11 +2,22 @@
   "name": "photopti",
   "productName": "Photopti",
   "version": "1.0.0",
-  "description": "Desktop image optimizer based on Photopti CLI",
-  "homepage": "https://ampnet.media",
+  "description": "A desktop app for batch image optimization and precise cover-image cropping.",
+  "homepage": "https://github.com/adamaoc/photopti-app#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/adamaoc/photopti-app.git"
+  },
+  "bugs": {
+    "url": "https://github.com/adamaoc/photopti-app/issues"
+  },
+  "keywords": ["electron", "image-optimization", "image-resize", "photo", "sharp"],
+  "engines": {
+    "node": ">=20"
+  },
   "main": "main.js",
   "build": {
-    "appId": "com.photopti.app",
+    "appId": "com.adamaoc.photopti",
     "productName": "Photopti",
     "icon": "assets/logo-lg-200.png",
     "asarUnpack": [
@@ -18,15 +29,14 @@
       "main.js",
       "main-process/**/*",
       "preload.js",
-      "renderer/**/*",
-      "assets/**/*"
+      "renderer/**/*"
     ],
     "extraResources": [
       {
         "from": "assets",
         "to": "assets",
         "filter": [
-          "**/*"
+          "logo-lg-200.png"
         ]
       }
     ],
@@ -68,6 +78,8 @@
     "start": "electron .",
     "dist": "electron-builder -mwl",
     "dist:mac": "electron-builder --mac",
+    "dist:win": "electron-builder --win",
+    "dist:linux": "electron-builder --linux",
     "lint": "node scripts/check-syntax.js",
     "test": "node --test",
     "check": "npm run lint && npm test"

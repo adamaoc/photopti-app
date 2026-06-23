@@ -13,7 +13,7 @@ function createWindow() {
     title: "Photopti",
     titleBarStyle: "hiddenInset",
     trafficLightPosition: { x: 12, y: 12 },
-    icon: iconPath,
+    ...(iconPath ? { icon: iconPath } : {}),
     webPreferences: {
       preload: path.join(__dirname, "..", "preload.js"),
       contextIsolation: true,

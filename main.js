@@ -13,10 +13,10 @@ app.whenReady().then(() => {
       try {
         app.setAboutPanelOptions({
           applicationName: "Photopti",
-          applicationVersion: "1.0",
-          version: "1.0",
-          credits: "powered by ampnet (media)",
-          copyright: "© 2025 ampnet (media)",
+          applicationVersion: app.getVersion(),
+          version: app.getVersion(),
+          credits: "Open-source software licensed under the MIT License",
+          copyright: "© 2025 ampnet media",
           icon: dockIcon || undefined,
         });
       } catch (error) {
