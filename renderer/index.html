@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Photopti</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="header">
+      <div class="brand">
+        <img id="logo" alt="Photopti logo" />
+        <h1>Photopti</h1>
+      </div>
+    </header>
+
+    <main class="container">
+      <section class="drop-section" id="drop-section">
+        <div id="dropzone" class="dropzone">
+          <p class="drop-title">Drag & drop a folder or images</p>
+          <p class="drop-sub">
+            They will be optimized into an
+            <span class="accent">Opti</span> folder
+          </p>
+        </div>
+        <div id="selection" class="selection hidden"></div>
+        <div id="coverEditor" class="cover-editor hidden">
+          <div class="cover-editor-header">
+            <div>
+              <h2>Cover crop</h2>
+              <p id="coverEditorFile"></p>
+            </div>
+          </div>
+          <div id="coverCropStage" class="cover-crop-stage">
+            <img id="coverCropImage" alt="Cover crop preview" />
+            <div id="coverCropBox" class="cover-crop-box">
+              <div class="cover-crop-grid" aria-hidden="true"></div>
+              <div id="coverCropHandle" class="cover-crop-handle"></div>
+            </div>
+          </div>
+        </div>
+        <div id="thumbs" class="thumbs hidden" aria-live="polite"></div>
+      </section>
+
+      <section class="controls">
+        <div class="control-heading batch-heading">
+          <h2>Batch settings</h2>
+        </div>
+        <div class="row">
+          <label class="toggle">
+            <input type="radio" name="resizeMode" value="width" checked />
+            <span class="custom-radio" aria-hidden="true"></span>
+            <span class="toggle-label">Resize to width</span>
+          </label>
+          <input id="width" type="number" min="1" value="800" class="input" />
+          <span class="hint">px</span>
+        </div>
+        <div class="row">
+          <label class="toggle">
+            <input type="radio" name="resizeMode" value="percentage" />
+            <span class="custom-radio" aria-hidden="true"></span>
+            <span class="toggle-label">Resize by percentage</span>
+          </label>
+          <input
+            id="percentage"
+            type="number"
+            min="1"
+            max="1000"
+            placeholder="e.g. 50"
+            class="input"
+            disabled
+          />
+          <span class="hint">%</span>
+        </div>
+        <div class="row">
+          <label>Quality</label>
+          <input
+            id="quality"
+            class="range"
+            type="range"
+            min="1"
+            max="100"
+            value="80"
+          />
+          <span id="qualityValue" class="hint">80</span>
+        </div>
+        <div class="row">
+          <label>Rename base (optional)</label>
+          <input id="rename" type="text" placeholder="photo" class="input" />
+        </div>
+        <div class="row">
+          <label>Output folder</label>
+          <input id="output" type="text" class="input" value="Opti" />
+        </div>
+        <div id="folderSelection" class="folder-selection hidden">
+          <div class="folder-selection-header">
+            <label>Files are from multiple folders</label>
+          </div>
+          <div class="folder-selection-content">
+            <button id="folderSelectBtn" class="button-outline" type="button">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+              </svg>
+              Select output folder
+            </button>
+            <div id="folderDisplay" class="folder-display hidden"></div>
+          </div>
+        </div>
+        <div id="coverControls" class="cover-controls hidden">
+          <div class="control-heading">
+            <h2>Cover crop</h2>
+          </div>
+          <div class="cover-control-row">
+            <label for="coverAspect">Aspect</label>
+            <select id="coverAspect" class="input">
+              <option value="16:9">16:9</option>
+              <option value="1:1">1:1</option>
+              <option value="4:3">4:3</option>
+              <option value="free">Free</option>
+            </select>
+          </div>
+          <div class="cover-control-row">
+            <label>Orientation</label>
+            <button id="coverOrientation" class="button-outline" type="button">
+              Flip
+            </button>
+          </div>
+          <div class="cover-control-row">
+            <label for="coverCropScale">Crop size</label>
+            <input
+              id="coverCropScale"
+              class="range"
+              type="range"
+              min="25"
+              max="100"
+              value="90"
+            />
+            <span id="coverCropScaleValue" class="hint">90</span>
+          </div>
+          <div class="cover-control-row">
+            <label for="coverWidth">Output</label>
+            <input id="coverWidth" type="number" min="1" value="1920" class="input small-input" />
+            <span class="hint">x</span>
+            <input id="coverHeight" type="number" min="1" value="1080" class="input small-input" />
+          </div>
+        </div>
+        <div id="status" class="status" role="status"></div>
+        <div id="progressWrap" class="progress-wrap hidden">
+          <div id="progressBar" class="progress"></div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <div class="powered">
+        Powered by
+        <a href="https://ampnet.media" target="_blank" rel="noopener noreferrer"
+          >ampnet (media)</a
+        >
+      </div>
+      <div class="actions-footer">
+        <button id="process" class="button">Process images</button>
+        <button id="cancel" class="button-outline hidden" type="button">
+          Cancel
+        </button>
+        <button id="reset" class="button-outline hidden" title="Reset">
+          <svg
+            class="reset-icon"
+            width="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+            focusable="false"
+          >
+            <path d="M1 4v6h6"></path>
+            <path d="M3.51 15a9 9 0 1 0-2.12-9.36L1 10"></path>
+          </svg>
+          Reset
+        </button>
+      </div>
+    </footer>
+
+    <script src="renderer.js"></script>
+  </body>
+</html>
