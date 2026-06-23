@@ -7,14 +7,16 @@
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
-    <header class="header">
+    <div class="app-shell">
+      <header class="header">
       <div class="brand">
         <img id="logo" alt="Photopti logo" />
         <h1>Photopti</h1>
       </div>
-    </header>
+      </header>
 
-    <main class="container">
+      <div class="workspace">
+        <main class="container">
       <section class="drop-section" id="drop-section">
         <div id="dropzone" class="dropzone">
           <button id="dropzoneTrigger" class="dropzone-trigger" type="button" aria-expanded="false" aria-controls="inputChoices">
@@ -30,7 +32,6 @@
             <span class="accent">Opti</span> folder
           </p>
         </div>
-        <div id="selection" class="selection hidden"></div>
         <div id="coverEditor" class="cover-editor hidden">
           <div class="cover-editor-header">
             <div>
@@ -156,40 +157,58 @@
           <div id="progressBar" class="progress"></div>
         </div>
       </section>
-    </main>
+        </main>
+      </div>
 
-    <footer class="footer">
-      <div class="powered">
-        Powered by
-        <a href="https://ampnet.media" target="_blank" rel="noopener noreferrer"
-          >ampnet (media)</a
-        >
-      </div>
-      <div class="actions-footer">
-        <button id="process" class="button">Process images</button>
-        <button id="cancel" class="button-outline hidden" type="button">
-          Cancel
-        </button>
-        <button id="reset" class="button-outline hidden" title="Reset">
-          <svg
-            class="reset-icon"
-            width="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            aria-hidden="true"
-            focusable="false"
-          >
-            <path d="M1 4v6h6"></path>
-            <path d="M3.51 15a9 9 0 1 0-2.12-9.36L1 10"></path>
-          </svg>
-          Reset
-        </button>
-      </div>
-    </footer>
+      <footer class="footer">
+        <div class="footer-information">
+          <div class="footer-stats" aria-label="Current image selection">
+            <div class="footer-stat footer-source">
+              <span class="footer-stat-label">Source</span>
+              <span id="footerSource" class="footer-stat-value" title="No source selected" aria-label="Source: No source selected">No source selected</span>
+            </div>
+            <div class="footer-stat footer-count">
+              <span class="footer-stat-label">Images</span>
+              <span id="footerImageCount" class="footer-stat-value">0</span>
+            </div>
+            <div id="footerCoverStat" class="footer-stat footer-cover hidden">
+              <span class="footer-stat-label">Cover</span>
+              <span id="footerCover" class="footer-stat-value"></span>
+            </div>
+          </div>
+          <div class="powered">
+            Powered by
+            <a href="https://ampnet.media" target="_blank" rel="noopener noreferrer"
+              >ampnet (media)</a
+            >
+          </div>
+        </div>
+        <div class="actions-footer">
+          <button id="process" class="button">Process images</button>
+          <button id="cancel" class="button-outline hidden" type="button">
+            Cancel
+          </button>
+          <button id="reset" class="button-outline hidden" title="Reset">
+            <svg
+              class="reset-icon"
+              width="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+              focusable="false"
+            >
+              <path d="M1 4v6h6"></path>
+              <path d="M3.51 15a9 9 0 1 0-2.12-9.36L1 10"></path>
+            </svg>
+            Reset
+          </button>
+        </div>
+      </footer>
+    </div>
 
     <script src="renderer.js"></script>
   </body>
