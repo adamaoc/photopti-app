@@ -6,6 +6,7 @@ let selectedOutputFolder = null;
 let coverImagePath = null;
 let thumbnailUrls = new Map();
 let thumbnailRequestId = 0;
+let inputDialogOpen = false;
 let coverCrop = {
   aspectRatio: '16:9',
   orientation: 'landscape',
@@ -37,7 +38,10 @@ function initDnD() {
   const dropzone = $('#dropzone');
   const dropSection = $('#drop-section');
   const selection = $('#selection');
-  const thumbs = $('#thumbs');
+  const dropzoneTrigger = $('#dropzoneTrigger');
+  const inputChoices = $('#inputChoices');
+  const selectImages = $('#selectImages');
+  const selectFolder = $('#selectFolder');
 
   // Handle drag events on dropzone (when visible)
   ['dragenter','dragover'].forEach(evt => {
@@ -73,19 +77,17 @@ function initDnD() {
     });
   });
 
-  const handleDrop = (e) => {
-    const files = Array.from(e.dataTransfer.files || []);
-    const newPaths = files.map(f => f.path);
+  const addInputPaths = async (newPaths) => {
     if (newPaths.length === 0) return;
 
     // Append new paths, avoiding duplicates
     const existingSet = new Set(droppedPaths);
-    const uniqueNewPaths = newPaths.filter(p => !existingSet.has(p));
+    const uniqueNewPaths = Array.from(new Set(newPaths)).filter(p => !existingSet.has(p));
     if (uniqueNewPaths.length === 0) return;
 
-    droppedPaths = [...droppedPaths, ...uniqueNewPaths];
-
-    window.photopti.listImages(uniqueNewPaths).then((newImagePaths) => {
+    try {
+      const newImagePaths = await window.photopti.listImages(uniqueNewPaths);
+      droppedPaths = [...droppedPaths, ...uniqueNewPaths];
       // Merge new image paths with existing ones, avoiding duplicates
       const existingImageSet = new Set(imagePaths);
       const uniqueNewImages = newImagePaths.filter(p => !existingImageSet.has(p));
@@ -99,18 +101,66 @@ function initDnD() {
       selection.textContent = details;
       renderThumbs(imagePaths);
       updateFolderSelectionUI();
+      setChoicesOpen(false);
       $('#status').textContent = '';
-    });
+    } catch (error) {
+      $('#status').textContent = `Could not add images: ${error.message || error}`;
+    }
+  };
+
+  const handleDrop = (e) => {
+    const files = Array.from(e.dataTransfer.files || []);
+    const newPaths = files.map(f => f.path);
+    addInputPaths(newPaths);
   };
 
   dropzone.addEventListener('drop', handleDrop);
   dropSection.addEventListener('drop', handleDrop);
+
+  const setChoicesOpen = (open) => {
+    inputChoices.classList.toggle('hidden', !open);
+    dropzoneTrigger.setAttribute('aria-expanded', String(open));
+  };
+
+  dropzoneTrigger.addEventListener('click', () => {
+    const isOpen = !inputChoices.classList.contains('hidden');
+    setChoicesOpen(!isOpen);
+    if (!isOpen) selectImages.focus();
+  });
+
+  dropzone.addEventListener('click', (event) => {
+    if (event.target === dropzone || event.target.closest('.drop-destination')) {
+      dropzoneTrigger.click();
+    }
+  });
+
+  const selectFromDialog = async (kind) => {
+    if (inputDialogOpen || !window.photopti?.showInputDialog) return;
+    inputDialogOpen = true;
+    selectImages.disabled = true;
+    selectFolder.disabled = true;
+    try {
+      const paths = await window.photopti.showInputDialog(kind);
+      if (paths) await addInputPaths(paths);
+    } catch (error) {
+      $('#status').textContent = `Could not open selection dialog: ${error.message || error}`;
+    } finally {
+      inputDialogOpen = false;
+      selectImages.disabled = false;
+      selectFolder.disabled = false;
+      setChoicesOpen(false);
+    }
+  };
+
+  selectImages.addEventListener('click', () => selectFromDialog('images'));
+  selectFolder.addEventListener('click', () => selectFromDialog('folder'));
 }
 
 function getUniqueFolders(paths) {
   const folders = new Set();
   paths.forEach(p => {
-    const dir = p.substring(0, p.lastIndexOf('/'));
+    const separatorIndex = Math.max(p.lastIndexOf('/'), p.lastIndexOf('\\'));
+    const dir = p.substring(0, separatorIndex);
     if (dir) folders.add(dir);
   });
   return Array.from(folders);

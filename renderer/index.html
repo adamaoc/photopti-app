@@ -17,9 +17,16 @@
     <main class="container">
       <section class="drop-section" id="drop-section">
         <div id="dropzone" class="dropzone">
-          <p class="drop-title">Drag & drop a folder or images</p>
-          <p class="drop-sub">
-            They will be optimized into an
+          <button id="dropzoneTrigger" class="dropzone-trigger" type="button" aria-expanded="false" aria-controls="inputChoices">
+            <span class="drop-title">Drag & drop images or a folder</span>
+            <span class="drop-sub">or click to browse</span>
+          </button>
+          <div id="inputChoices" class="input-choices hidden" aria-label="Choose what to add">
+            <button id="selectImages" class="input-choice" type="button">Select images</button>
+            <button id="selectFolder" class="input-choice" type="button">Select folder</button>
+          </div>
+          <p class="drop-destination">
+            Supported images will be optimized into an
             <span class="accent">Opti</span> folder
           </p>
         </div>

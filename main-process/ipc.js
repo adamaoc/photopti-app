@@ -1,12 +1,54 @@
-const { dialog, ipcMain } = require("electron");
 const { resolveDroppedToImages } = require("./file-discovery");
 const { processImages } = require("./image-processor");
 const { resolveLogoPath } = require("./logo-paths");
 const { getThumbnails } = require("./thumbnails");
+const { SUPPORTED_FORMATS } = require("./constants");
 
 let activeProcess = null;
 
-function registerIpcHandlers() {
+function createInputDialogHandler(dialog) {
+  let activeDialog = null;
+
+  return async (_event, kind) => {
+    if (activeDialog) return null;
+
+    if (kind !== "images" && kind !== "folder") {
+      throw new Error("Invalid input selection type");
+    }
+
+    const options = kind === "folder"
+      ? {
+          properties: ["openDirectory"],
+          title: "Select image folder",
+        }
+      : {
+          properties: ["openFile", "multiSelections"],
+          title: "Select images",
+          filters: [
+            {
+              name: "Images",
+              extensions: SUPPORTED_FORMATS.map((extension) => extension.slice(1)),
+            },
+          ],
+        };
+
+    activeDialog = dialog.showOpenDialog(options);
+    try {
+      const result = await activeDialog;
+      if (result.canceled || result.filePaths.length === 0) return null;
+      return result.filePaths;
+    } finally {
+      activeDialog = null;
+    }
+  };
+}
+
+function registerIpcHandlers(dependencies = {}) {
+  const electron = dependencies.ipcMain && dependencies.dialog
+    ? dependencies
+    : require("electron");
+  const { dialog, ipcMain } = electron;
+
   ipcMain.handle("get-logo-path", () => {
     return resolveLogoPath();
   });
@@ -14,6 +56,8 @@ function registerIpcHandlers() {
   ipcMain.handle("list-images", async (_event, paths) => {
     return await resolveDroppedToImages(paths);
   });
+
+  ipcMain.handle("show-input-dialog", createInputDialogHandler(dialog));
 
   ipcMain.handle("get-thumbnails", async (_event, paths, options) => {
     return await getThumbnails(paths, options);
@@ -61,5 +105,6 @@ function registerIpcHandlers() {
 }
 
 module.exports = {
+  createInputDialogHandler,
   registerIpcHandlers,
 };
