@@ -37,7 +37,6 @@ function setLogo() {
 function initDnD() {
   const dropzone = $('#dropzone');
   const dropSection = $('#drop-section');
-  const selection = $('#selection');
   const dropzoneTrigger = $('#dropzoneTrigger');
   const inputChoices = $('#inputChoices');
   const selectImages = $('#selectImages');
@@ -96,11 +95,9 @@ function initDnD() {
       // Reset selected folder when new files are added
       selectedOutputFolder = null;
       
-      const details = summarizeDrop(droppedPaths);
-      selection.classList.remove('hidden');
-      selection.textContent = details;
       renderThumbs(imagePaths);
       updateFolderSelectionUI();
+      updateFooterStats();
       setChoicesOpen(false);
       $('#status').textContent = '';
     } catch (error) {
@@ -171,16 +168,40 @@ function hasMultipleFolders(paths) {
   return folders.length > 1;
 }
 
-function summarizeDrop(paths) {
-  const coverText = coverImagePath ? `\nCover: ${coverImagePath.split('/').pop()}` : '';
-  if (paths.length === 1) {
-    return `Selected: ${paths[0]}${coverText}`;
-  }
+function getFileName(path) {
+  return path.split(/[\\/]/).pop();
+}
+
+function getSourceSummary(paths) {
+  if (paths.length === 0) return 'No source selected';
+  if (paths.length === 1) return paths[0];
   const folders = getUniqueFolders(paths);
-  if (folders.length === 1) {
-    return `Folder: ${folders[0]}\n${paths.length} item(s) selected${coverText}`;
+  return folders.length === 1 ? folders[0] : `Multiple folders (${folders.length})`;
+}
+
+function updateFooterStats() {
+  const source = $('#footerSource');
+  const count = $('#footerImageCount');
+  const coverStat = $('#footerCoverStat');
+  const cover = $('#footerCover');
+  if (!source || !count || !coverStat || !cover) return;
+
+  const sourceText = getSourceSummary(droppedPaths);
+  source.textContent = sourceText;
+  source.title = sourceText;
+  source.setAttribute('aria-label', `Source: ${sourceText}`);
+  count.textContent = String(imagePaths.length);
+
+  coverStat.classList.toggle('hidden', !coverImagePath);
+  if (coverImagePath) {
+    cover.textContent = getFileName(coverImagePath);
+    cover.title = coverImagePath;
+    cover.setAttribute('aria-label', `Cover: ${coverImagePath}`);
+  } else {
+    cover.textContent = '';
+    cover.removeAttribute('title');
+    cover.removeAttribute('aria-label');
   }
-  return `Multiple folders (${folders.length})\n${paths.length} item(s) selected${coverText}`;
 }
 
 function updateFolderSelectionUI() {
@@ -216,31 +237,26 @@ function removePhoto(path) {
   if (imagePaths.length === 0) {
     const thumbs = $('#thumbs');
     const dropzone = $('#dropzone');
-    const selection = $('#selection');
     thumbs.classList.add('hidden');
     dropzone.classList.remove('hidden');
-    selection.classList.add('hidden');
+    droppedPaths = [];
     selectedOutputFolder = null;
     coverImagePath = null;
     resetCoverCrop();
   } else {
-    const details = summarizeDrop(droppedPaths);
-    $('#selection').textContent = details;
     renderThumbs(imagePaths);
     updateFolderSelectionUI();
     updateCoverCropUI();
   }
+  updateFooterStats();
 }
 
 function promoteToCover(path) {
   coverImagePath = path;
   resetCoverCrop();
-  const selection = $('#selection');
-  if (selection && !selection.classList.contains('hidden')) {
-    selection.textContent = summarizeDrop(droppedPaths);
-  }
   renderThumbs(imagePaths);
   updateCoverCropUI();
+  updateFooterStats();
 }
 
 function resetCoverCrop() {
@@ -680,7 +696,6 @@ function initProcess() {
     $('#dropzone').classList.remove('hidden');
     $('#thumbs').classList.add('hidden');
     $('#thumbs').innerHTML = '';
-    $('#selection').classList.add('hidden');
     $('#folderSelection').classList.add('hidden');
     progressBar.style.width = '0%';
     progressWrap.classList.add('hidden');
@@ -692,6 +707,7 @@ function initProcess() {
     resetBtn.classList.add('hidden');
     btn.classList.remove('hidden');
     updateCoverCropUI();
+    updateFooterStats();
   });
 
   // Folder selection button handler
@@ -722,6 +738,7 @@ window.addEventListener('DOMContentLoaded', () => {
   initControls();
   initCoverCropControls();
   initProcess();
+  updateFooterStats();
 });
 
 // Escape for use in CSS attribute selectors
