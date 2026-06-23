@@ -4,6 +4,11 @@ const sharp = require("sharp");
 const heicConvert = require("heic-convert");
 const { HEIC_FORMATS } = require("./constants");
 const {
+  dimensionsForRatio,
+  getPresetRatio,
+  parseOutputDimension,
+} = require("../renderer/crop-geometry");
+const {
   getPathType,
   isSupportedImagePath,
   listImagesInDirectory,
@@ -39,15 +44,21 @@ function normalizeProcessOptions(options = {}) {
 }
 
 function normalizeCoverOptions(cover = {}) {
-  const width = normalizeInteger(cover.width, 1, MAX_IMAGE_DIMENSION, DEFAULT_COVER_WIDTH);
-  const height = normalizeInteger(
-    cover.height,
-    1,
-    MAX_IMAGE_DIMENSION,
-    Math.round((width * DEFAULT_COVER_HEIGHT) / DEFAULT_COVER_WIDTH)
-  );
   const aspectRatio = cover.aspectRatio || DEFAULT_COVER_ASPECT_RATIO;
   const orientation = cover.orientation || "landscape";
+  if (orientation !== "landscape" && orientation !== "portrait") {
+    throw new Error(`Unsupported cover orientation: ${orientation}`);
+  }
+  const ratio = getPresetRatio(aspectRatio, orientation);
+  let width = parseOutputDimension(cover.width ?? DEFAULT_COVER_WIDTH);
+  let height = parseOutputDimension(cover.height ?? DEFAULT_COVER_HEIGHT);
+  if (ratio) {
+    const anchor = cover.dimensionAnchor === "height"
+      || (cover.width === undefined && cover.height !== undefined)
+      ? "height"
+      : "width";
+    ({ width, height } = dimensionsForRatio(anchor === "width" ? width : height, anchor, ratio));
+  }
   const suffix = normalizePathSegment(cover.suffix, "cover", "cover suffix");
   const crop = normalizeCropBox(cover.crop);
 
@@ -208,8 +219,7 @@ async function processCoverImage(filePath, dest, options) {
   instance = instance
     .extract(extract)
     .resize(options.cover.width, options.cover.height, {
-      fit: "cover",
-      position: "centre",
+      fit: "fill",
     });
   await instance.jpeg({ quality: options.quality }).toFile(dest);
 }

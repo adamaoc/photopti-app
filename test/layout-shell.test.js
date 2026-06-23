@@ -8,6 +8,7 @@ const root = path.resolve(__dirname, '..');
 const html = fs.readFileSync(path.join(root, 'renderer', 'index.html'), 'utf8');
 const css = fs.readFileSync(path.join(root, 'renderer', 'styles.css'), 'utf8');
 const renderer = fs.readFileSync(path.join(root, 'renderer', 'renderer.js'), 'utf8');
+const cropGeometry = fs.readFileSync(path.join(root, 'renderer', 'crop-geometry.js'), 'utf8');
 
 function createElement() {
   const attributes = new Map();
@@ -52,6 +53,7 @@ function createRendererSandbox() {
     Set
   };
   vm.createContext(sandbox);
+  vm.runInContext(cropGeometry, sandbox);
   vm.runInContext(renderer, sandbox);
   return {
     elements,

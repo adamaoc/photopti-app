@@ -158,9 +158,9 @@
           </div>
           <div class="cover-control-row">
             <label for="coverWidth">Output</label>
-            <input id="coverWidth" type="number" min="1" value="1920" class="input small-input" />
+            <input id="coverWidth" type="number" min="1" max="20000" step="1" value="1920" class="input small-input" />
             <span class="hint">x</span>
-            <input id="coverHeight" type="number" min="1" value="1080" class="input small-input" />
+            <input id="coverHeight" type="number" min="1" max="20000" step="1" value="1080" class="input small-input" />
           </div>
         </div>
         <div id="status" class="status" role="status"></div>
@@ -221,6 +221,7 @@
       </footer>
     </div>
 
+    <script src="crop-geometry.js"></script>
     <script src="renderer.js"></script>
   </body>
 </html>
