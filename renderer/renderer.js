@@ -191,6 +191,7 @@ function updateFooterStats() {
   source.title = sourceText;
   source.setAttribute('aria-label', `Source: ${sourceText}`);
   count.textContent = String(imagePaths.length);
+  count.setAttribute('aria-label', `Images: ${imagePaths.length}`);
 
   coverStat.classList.toggle('hidden', !coverImagePath);
   if (coverImagePath) {
@@ -243,6 +244,7 @@ function removePhoto(path) {
     selectedOutputFolder = null;
     coverImagePath = null;
     resetCoverCrop();
+    $('#folderSelection').classList.add('hidden');
   } else {
     renderThumbs(imagePaths);
     updateFolderSelectionUI();
