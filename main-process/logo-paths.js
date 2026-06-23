@@ -1,30 +1,35 @@
 const fs = require("fs");
 const path = require("path");
-const { nativeImage } = require("electron");
 
-function resolveLogoPath() {
+function resolveLogoPath(options = {}) {
+  const resourcesPath = options.resourcesPath ?? process.resourcesPath;
+  const appDir = options.appDir ?? path.join(__dirname, "..");
+  const existsSync = options.existsSync ?? fs.existsSync;
   const packaged = path.join(
-    process.resourcesPath || "",
+    resourcesPath || "",
     "assets",
     "logo-lg-200.png"
   );
-  if (fs.existsSync(packaged)) return packaged;
+  if (resourcesPath && existsSync(packaged)) return packaged;
 
-  const localAsset = path.join(__dirname, "..", "assets", "logo-lg-200.png");
-  if (fs.existsSync(localAsset)) return localAsset;
+  const localAsset = path.join(appDir, "assets", "logo-lg-200.png");
+  if (existsSync(localAsset)) return localAsset;
 
-  return localAsset;
+  return null;
 }
 
-function loadDockIcon() {
+function loadDockIcon(options = {}) {
   try {
-    const icns = path.join(__dirname, "..", "assets", "photopti.icns");
+    const nativeImage = options.nativeImage ?? require("electron").nativeImage;
+    const appDir = options.appDir ?? path.join(__dirname, "..");
+    const icns = path.join(appDir, "assets", "photopti.icns");
     if (fs.existsSync(icns)) {
       const icnsImg = nativeImage.createFromPath(icns);
       if (icnsImg && !icnsImg.isEmpty()) return icnsImg;
     }
 
-    const logoPath = resolveLogoPath();
+    const logoPath = resolveLogoPath({ ...options, appDir });
+    if (!logoPath) return null;
     let img = nativeImage.createFromPath(logoPath);
     if (img && !img.isEmpty()) return img;
     if (fs.existsSync(logoPath)) {
