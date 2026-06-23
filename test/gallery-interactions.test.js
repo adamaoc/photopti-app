@@ -100,7 +100,7 @@ function descendants(element) {
   return element.children.flatMap((child) => [child, ...descendants(child)]);
 }
 
-function createSandbox() {
+function createSandbox({ stubThumbnailSelectionUI = false } = {}) {
   const thumbs = new TestElement();
   const dropzone = new TestElement();
   const batchSettings = new TestElement();
@@ -131,6 +131,7 @@ function createSandbox() {
   vm.runInContext(renderer, sandbox);
   const run = (source) => vm.runInContext(source, sandbox);
   run('updateCoverCropUI = () => {}; updateFolderSelectionUI = () => {}; updateFooterStats = () => {}');
+  if (stubThumbnailSelectionUI) run('updateThumbnailSelectionUI = () => {}');
   return { thumbs, batchSettings, process, body, run };
 }
 
@@ -197,7 +198,7 @@ test('removing a selected cover clears both states and closes crop mode', () => 
 });
 
 test('cover action enters crop workspace and returning preserves all gallery and crop state', () => {
-  const { thumbs, batchSettings, process, body, run } = createSandbox();
+  const { thumbs, batchSettings, process, body, run } = createSandbox({ stubThumbnailSelectionUI: true });
   run("droppedPaths = ['/photos/one.jpg', '/photos/two.jpg']; imagePaths = [...droppedPaths]; selectedImagePath = '/photos/one.jpg'; renderThumbs(imagePaths)");
 
   const second = findThumb(thumbs, '/photos/two.jpg');
