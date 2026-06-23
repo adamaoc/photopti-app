@@ -1,132 +1,87 @@
-## Photopti (Desktop)
+# Photopti
 
-A simple Electron desktop app for batch image optimization, mirroring the existing `cli-projects/photopti` tool. Drag-and-drop a folder or a set of images, configure options, and process them into an `Opti/` folder.
+Photopti is a local-first desktop app for photographers, designers, and web teams who need to resize and compress batches of images without uploading them to a service. It also creates a precisely cropped cover image alongside the batch output.
 
-### Features
-- Resize by width (px) or percentage
-- JPEG quality control
-- Optional sequential renaming (e.g., `photo-001.jpg`)
-- Outputs to `Opti/` in the dropped folder (customizable)
-- Supported formats: `.png, .jpg, .jpeg, .webp, .gif, .tiff, .bmp, .avif`
+## What it does
 
----
+- Select image files or recursively discover images in a folder.
+- Resize by a target width or percentage and choose JPEG quality.
+- Optionally rename output files with a numbered sequence.
+- Review thumbnails, remove items, and designate one image as a cover.
+- Crop a cover to 16:9, 1:1, 4:3, or a free aspect ratio in landscape or portrait orientation.
+- Cancel a running batch and review file-level failures.
 
-### Prerequisites
-- Node.js 18+ and npm
-- On macOS, Sharp may need Xcode Command Line Tools and system libraries. If `sharp` install fails, run:
-  ```bash
-  xcode-select --install || true
-  ```
+Photopti accepts PNG, JPEG, WebP, GIF, TIFF, BMP, AVIF, HEIC, and HEIF input. Output is JPEG. Animated inputs are not preserved as animations.
 
----
+All processing happens on the local computer. Source files are never modified. By default, results are written to an `Opti/` directory beside the selected folder or files; the output directory name can be changed. When selected files span multiple directories, the app asks for an output location. Existing output names are preserved and new files receive a numeric suffix instead of being overwritten.
 
-### Development
-Run the app in development mode with hot reload re-run (manual refresh):
+## Install a release
+
+Download the artifact for your operating system from [GitHub Releases](https://github.com/adamaoc/photopti-app/releases). Builds are configured for macOS (`.dmg` and `.zip`), Windows (`.exe` and `.zip`), and Linux (`.AppImage`, `.deb`, and `.tar.gz`). Availability depends on the artifacts published for each release; platform builds have not yet been verified on every supported operating system.
+
+Current releases may be unsigned. On macOS, Gatekeeper may block an unsigned build: open it with Control-click **Open** and confirm only if it came from this repository. Windows may display a SmartScreen warning. Official releases should be signed and, on macOS, notarized before broad distribution.
+
+## Develop locally
+
+Prerequisites:
+
+- Node.js 20 or 22 and npm
+- Git
+- Platform build tools if a native dependency cannot use a prebuilt binary
+
+From a fresh clone:
+
 ```bash
-cd electron-apps/photopti
-npm install
+git clone https://github.com/adamaoc/photopti-app.git
+cd photopti-app
+npm ci
 npm start
 ```
-- Drag-and-drop either a single folder (recommended) or multiple image files from the same folder.
-- Output defaults to `<dropped-folder>/Opti`. You can change the folder name in the UI.
 
-Logo note: In development, the app loads the logo from `cli-projects/photopti/Logo/logo-200.png` in this repository. Keep that file in place.
+There is no hot reload. Reload renderer-only changes from Electron, and restart the process for main-process or preload changes.
 
----
+Run the complete automated check:
 
-### Packaging (Distributables)
-This project uses `electron-builder` to create installable apps for macOS, Windows, and Linux.
-
-1) Install dev dependency:
 ```bash
-npm install --save-dev electron-builder
+npm run check
 ```
 
-2) Add these fields to `package.json` (if not already present):
-```json
-{
-  "name": "photopti-desktop",
-  "productName": "Photopti",
-  "version": "1.0.0",
-  "homepage": "https://ampnet.media",
-  "main": "main.js",
-  "build": {
-    "appId": "com.yourdomain.photopti",
-    "files": [
-      "main.js",
-      "preload.js",
-      "renderer/**/*"
-    ],
-    "mac": {
-      "category": "public.app-category.photography",
-      "target": ["dmg","zip"]
-    },
-    "win": {
-      "target": ["nsis","zip"]
-    },
-    "linux": {
-      "target": ["AppImage","deb","tar.gz"],
-      "category": "Graphics",
-      "maintainer": "ampnet media <hello@ampnet.media>"
-    }
-  },
-  "author": {
-    "name": "ampnet media",
-    "email": "hello@ampnet.media",
-    "url": "https://ampnet.media"
-  },
-  "scripts": {
-    "start": "electron .",
-    "dist": "electron-builder -mwl",
-    "dist:mac": "electron-builder --mac",
-    "lint": "node scripts/check-syntax.js",
-    "test": "node --test",
-    "check": "npm run lint && npm test"
-  },
-  "dependencies": {
-    "heic-convert": "^2.1.0",
-    "sharp": "^0.33.4"
-  },
-  "devDependencies": {
-    "@electron/notarize": "^2.2.0",
-    "electron": "^30.0.0",
-    "electron-builder": "^24.13.3"
-  }
-}
-```
+This performs a JavaScript syntax check and runs the Node test suite. The tests cover discovery, dialogs, thumbnails, batch processing, cancellation, error summaries, gallery behavior, crop geometry, and generated cover dimensions.
 
-3) Build the installers:
-```bash
-npm run dist
-```
-- Outputs will appear in `dist/`.
-- macOS: `.dmg` and `.zip`
-- Windows: `.exe` (NSIS installer) and `.zip`
-- Linux: `.AppImage`, `.deb`, `.tar.gz`
+## Build packages
 
-For a local macOS replacement build only:
+Build on the target operating system when possible:
+
 ```bash
 npm run dist:mac
+npm run dist:win
+npm run dist:linux
 ```
 
-Code signing:
-- macOS and Windows may require code signing for seamless installation. If you have certificates, configure them per electron-builder docs.
-- You can also build unsigned for testing. On macOS, you may need to right-click → Open.
+`npm run dist` requests all configured targets and is intended for a properly provisioned release environment. Artifacts are written to `dist/`, which is ignored by Git. Cross-platform packaging can require additional host tools and does not replace testing on the target platform.
 
----
+Signing credentials must be supplied through the environment and must never be committed. The macOS notarization hook accepts either `APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD`, and `APPLE_TEAM_ID`, or the App Store Connect API variables `APPLE_API_KEY`, `APPLE_API_KEY_ID`, and `APPLE_API_ISSUER`. See [the release checklist](docs/RELEASE_CHECKLIST.md) for the full process.
 
-### How it works
-- The main process receives dropped paths and determines whether it’s a folder or files from one folder.
-- Images are processed with `sharp` and output as JPEG to the `Opti/` folder (or your chosen name).
-- Progress and completion status are sent to the renderer to update the UI.
+## Project structure
 
----
+```text
+main.js                 Electron lifecycle entry point
+main-process/           Windows, IPC, discovery, thumbnails, and processing
+preload.js              Restricted renderer-to-main bridge
+renderer/               HTML, CSS, UI behavior, and crop geometry
+assets/                 Application logo and platform icons
+build/                  Packaging entitlements and notarization hook
+scripts/                Repository checks
+test/                   Node test suite
+docs/                   Maintainer documentation
+```
 
-### Troubleshooting
-- Sharp install errors: ensure build tools are installed (`xcode-select --install` on macOS) and try `npm rebuild sharp`.
-- If packaging fails on Apple Silicon, try:
-  ```bash
-  npm config set sharp_binary_host "https://npm.taobao.org/mirrors/sharp" # optional mirror
-  npm rebuild sharp
-  ```
-- If the app can’t find the logo during development, verify `cli-projects/photopti/Logo/logo-200.png` exists.
+## Status and limitations
+
+Photopti is usable but is preparing for its first broadly supported public release. Processing is sequential, folder discovery is capped at 10,000 files and 12 directory levels, and output is always JPEG. Metadata and animation are not intentionally preserved. Automated tests do not replace hands-on testing of packaged builds or every source codec on macOS, Windows, and Linux.
+
+## Contributing and support
+
+Read [CONTRIBUTING.md](CONTRIBUTING.md) before submitting a change. Use the issue templates to [report a bug](https://github.com/adamaoc/photopti-app/issues/new/choose) or request a feature. Report vulnerabilities privately as described in [SECURITY.md](SECURITY.md).
+
+Photopti is available under the [MIT License](LICENSE). It is built with [Electron](https://www.electronjs.org/), [Sharp](https://sharp.pixelplumbing.com/), and [heic-convert](https://github.com/catdad-experiments/heic-convert). The Photopti name, logo, and icon assets are maintained as project-owned assets and are not granted for unrelated branding by the MIT license covering the source code.

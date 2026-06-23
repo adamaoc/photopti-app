@@ -1,6 +1,6 @@
 const fs = require("fs");
 const path = require("path");
-const { app, nativeImage } = require("electron");
+const { nativeImage } = require("electron");
 
 function resolveLogoPath() {
   const packaged = path.join(
@@ -13,15 +13,7 @@ function resolveLogoPath() {
   const localAsset = path.join(__dirname, "..", "assets", "logo-lg-200.png");
   if (fs.existsSync(localAsset)) return localAsset;
 
-  return path.resolve(
-    app.getAppPath(),
-    "..",
-    "..",
-    "cli-projects",
-    "photopti",
-    "Logo",
-    "logo-lg-200.png"
-  );
+  return localAsset;
 }
 
 function loadDockIcon() {
