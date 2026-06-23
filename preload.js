@@ -3,6 +3,7 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('photopti', {
   getLogoPath: () => ipcRenderer.invoke('get-logo-path'),
   listImages: (paths) => ipcRenderer.invoke('list-images', paths),
+  showInputDialog: (kind) => ipcRenderer.invoke('show-input-dialog', kind),
   getThumbnails: (paths, options) => ipcRenderer.invoke('get-thumbnails', paths, options),
   showFolderDialog: () => ipcRenderer.invoke('show-folder-dialog'),
   cancelProcessing: () => ipcRenderer.invoke('cancel-processing'),
