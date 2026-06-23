@@ -201,6 +201,14 @@ test("converts normalized cover crop coordinates to sharp extract values", () =>
   );
 });
 
+test("preserves crop boxes down to the UI minimum", () => {
+  const options = normalizeProcessOptions({
+    cover: { crop: { x: 91, y: 92, width: 9, height: 8 } },
+  });
+
+  assert.deepEqual(options.cover.crop, { x: 91, y: 92, width: 9, height: 8 });
+});
+
 test("creates a separate 16:9 cover output without changing batch output sizing", async () => {
   await withTempDir(async (dir) => {
     const source = path.join(dir, "source.png");
@@ -289,6 +297,48 @@ test("creates a 900x1600 portrait cover from the selected source region", async 
     assert.equal(metadata.width, 900);
     assert.equal(metadata.height, 1600);
     assert.ok(pixel[0] > 240 && pixel[1] < 20 && pixel[2] < 20);
+  });
+});
+
+test("creates a free-aspect cover using supplied dimensions and crop", async () => {
+  await withTempDir(async (dir) => {
+    const source = path.join(dir, "free-source.png");
+    await sharp({
+      create: {
+        width: 200,
+        height: 100,
+        channels: 3,
+        background: "#ff0000",
+      },
+    })
+      .composite([{
+        input: Buffer.from('<svg width="100" height="100"><rect width="100" height="100" fill="#0000ff"/></svg>'),
+        left: 100,
+        top: 0,
+      }])
+      .png()
+      .toFile(source);
+
+    await processImages({
+      paths: [source],
+      options: {
+        output: "Opti",
+        coverImagePath: source,
+        cover: {
+          width: 333,
+          height: 777,
+          aspectRatio: "free",
+          crop: { x: 50, y: 0, width: 50, height: 100 },
+        },
+      },
+    });
+
+    const output = sharp(path.join(dir, "Opti", "cover-free-source.jpg"));
+    const metadata = await output.metadata();
+    const pixel = await output.extract({ left: 166, top: 388, width: 1, height: 1 }).raw().toBuffer();
+    assert.equal(metadata.width, 333);
+    assert.equal(metadata.height, 777);
+    assert.ok(pixel[2] > 240 && pixel[0] < 20 && pixel[1] < 20);
   });
 });
 

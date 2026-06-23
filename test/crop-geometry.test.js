@@ -33,6 +33,20 @@ test('ratio changes preserve crop center unless an image edge constrains it', ()
   assert.ok(Math.abs(box.y + box.height / 2 - 50) < 1e-10);
 });
 
+test('requested width is recomputed when its matching height would exceed the image', () => {
+  const box = fitBoxToRatio(
+    { x: 20, y: 10, width: 50, height: 50 },
+    1 / 4,
+    2,
+    80
+  );
+
+  assert.equal(box.height, 100);
+  assert.equal(box.width, 12.5);
+  assert.equal(getCropRatio(box, 2), 1 / 4);
+  assert.ok(box.x >= 0 && box.x + box.width <= 100);
+});
+
 test('output dimensions lock to either edited axis', () => {
   assert.deepEqual(dimensionsForRatio(1600, 'height', 9 / 16), { width: 900, height: 1600 });
   assert.deepEqual(dimensionsForRatio(1200, 'width', 4 / 3), { width: 1200, height: 900 });

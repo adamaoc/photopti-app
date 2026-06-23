@@ -4,6 +4,7 @@ const sharp = require("sharp");
 const heicConvert = require("heic-convert");
 const { HEIC_FORMATS } = require("./constants");
 const {
+  MIN_CROP_PERCENT,
   dimensionsForRatio,
   getPresetRatio,
   parseOutputDimension,
@@ -73,8 +74,8 @@ function normalizeCoverOptions(cover = {}) {
 }
 
 function normalizeCropBox(crop = {}) {
-  const width = clampNumber(crop.width, 10, 100, 90);
-  const height = clampNumber(crop.height, 10, 100, 50.625);
+  const width = clampNumber(crop.width, MIN_CROP_PERCENT, 100, 90);
+  const height = clampNumber(crop.height, MIN_CROP_PERCENT, 100, 50.625);
   const x = clampNumber(crop.x, 0, 100 - width, (100 - width) / 2);
   const y = clampNumber(crop.y, 0, 100 - height, (100 - height) / 2);
 

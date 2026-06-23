@@ -98,6 +98,12 @@ test('crop workspace provides accessible gallery navigation and automatic-save g
   assert.match(rule('body.crop-mode .container'), /grid-template-columns:/);
 });
 
+test('crop overlay keeps fitted bounds and refreshes after layout changes', () => {
+  assert.match(renderer, /coverCrop\.box = fitted/);
+  assert.match(renderer, /window\.addEventListener\('resize', updateCoverCropUI\)/);
+  assert.match(renderer, /new ResizeObserver\(updateCoverCropUI\)\.observe\(stage\)/);
+});
+
 test('summarizes empty, single, shared-folder, and multi-folder sources', () => {
   const { run } = createRendererSandbox();
 

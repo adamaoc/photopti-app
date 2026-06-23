@@ -352,9 +352,12 @@ function fitCropBoxToRatio(scale) {
 
 function updateCoverOutputDimensions(anchor = 'width') {
   coverDimensionAnchor = anchor;
-  const dimensions = CropGeometryApi.dimensionsForRatio(coverCrop[anchor], anchor, getCoverRatio());
+  const ratio = getCoverRatio();
+  if (!(ratio > 0)) return false;
+  const dimensions = CropGeometryApi.dimensionsForRatio(coverCrop[anchor], anchor, ratio);
   coverCrop.width = dimensions.width;
   coverCrop.height = dimensions.height;
+  return true;
 }
 
 function updateCoverCropUI() {
@@ -494,8 +497,7 @@ function initCoverCropControls() {
           coverImageAspectRatio,
           Math.min(coverCrop.box.width, maxWidth)
         );
-        coverCrop.box.width = fitted.width;
-        coverCrop.box.height = fitted.height;
+        coverCrop.box = fitted;
       }
     }
     updateCoverCropUI();
@@ -507,6 +509,10 @@ function initCoverCropControls() {
 
   window.addEventListener('pointermove', onPointerMove);
   window.addEventListener('pointerup', onPointerUp);
+  window.addEventListener('resize', updateCoverCropUI);
+  if (typeof ResizeObserver === 'function') {
+    new ResizeObserver(updateCoverCropUI).observe(stage);
+  }
 
   if (aspect) {
     aspect.addEventListener('change', () => {
@@ -527,6 +533,7 @@ function initCoverCropControls() {
       coverDimensionAnchor = coverDimensionAnchor === 'width' ? 'height' : 'width';
       if (coverCrop.aspectRatio === 'free' && coverImageAspectRatio > 0) {
         coverCrop.box = CropGeometryApi.fitBoxToRatio(coverCrop.box, 1 / oldRatio, coverImageAspectRatio);
+        updateCoverOutputDimensions(coverDimensionAnchor);
       } else {
         fitCropBoxToRatio();
       }
