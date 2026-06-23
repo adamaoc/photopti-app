@@ -89,6 +89,13 @@ test('renders selection stats in the footer and removes the old top panel', () =
   assert.match(rule('.footer-stat-value'), /white-space:\s*nowrap/);
 });
 
+test('crop workspace provides accessible gallery navigation and automatic-save guidance', () => {
+  assert.match(html, /id="backToGallery"[\s\S]*aria-label="Back to gallery"/);
+  assert.match(html, /id="batchSettings"/);
+  assert.match(html, /Changes are saved automatically/);
+  assert.match(rule('body.crop-mode .container'), /grid-template-columns:/);
+});
+
 test('summarizes empty, single, shared-folder, and multi-folder sources', () => {
   const { run } = createRendererSandbox();
 

@@ -103,11 +103,17 @@ function descendants(element) {
 function createSandbox() {
   const thumbs = new TestElement();
   const dropzone = new TestElement();
+  const batchSettings = new TestElement();
+  const process = new TestElement('button');
+  const body = new TestElement('body');
   const elements = new Map([
     ['#thumbs', thumbs],
-    ['#dropzone', dropzone]
+    ['#dropzone', dropzone],
+    ['#batchSettings', batchSettings],
+    ['#process', process]
   ]);
   const document = {
+    body,
     querySelector: (selector) => elements.get(selector) || null,
     querySelectorAll: (selector) => selector === '.thumb'
       ? descendants(thumbs).filter((element) => element.classList.contains('thumb'))
@@ -125,7 +131,7 @@ function createSandbox() {
   vm.runInContext(renderer, sandbox);
   const run = (source) => vm.runInContext(source, sandbox);
   run('updateCoverCropUI = () => {}; updateFolderSelectionUI = () => {}; updateFooterStats = () => {}');
-  return { thumbs, run };
+  return { thumbs, batchSettings, process, body, run };
 }
 
 function findByClass(root, className) {
@@ -190,3 +196,43 @@ test('removing a selected cover clears both states and closes crop mode', () => 
   assert.equal(run('JSON.stringify(imagePaths)'), '["/photos/one.jpg"]');
 });
 
+test('cover action enters crop workspace and returning preserves all gallery and crop state', () => {
+  const { thumbs, batchSettings, process, body, run } = createSandbox();
+  run("droppedPaths = ['/photos/one.jpg', '/photos/two.jpg']; imagePaths = [...droppedPaths]; selectedImagePath = '/photos/one.jpg'; renderThumbs(imagePaths)");
+
+  const second = findThumb(thumbs, '/photos/two.jpg');
+  findByClass(second, 'thumb-cover-action').dispatch('click');
+
+  assert.equal(run('workspaceMode'), 'crop');
+  assert.equal(run('selectedImagePath'), '/photos/one.jpg');
+  assert.equal(run('coverImagePath'), '/photos/two.jpg');
+  assert.equal(thumbs.classList.contains('hidden'), true);
+  assert.equal(batchSettings.classList.contains('hidden'), true);
+  assert.equal(process.classList.contains('hidden'), true);
+  assert.equal(body.classList.contains('crop-mode'), true);
+
+  run("coverCrop.aspectRatio = '4:3'; coverCrop.orientation = 'portrait'; coverCrop.width = 900; coverCrop.height = 1200; coverCrop.box = { x: 12, y: 8, width: 70, height: 52.5 }; returnToGallery()");
+
+  assert.equal(run('workspaceMode'), 'gallery');
+  assert.equal(run('selectedImagePath'), '/photos/one.jpg');
+  assert.equal(run('coverImagePath'), '/photos/two.jpg');
+  assert.equal(
+    run('JSON.stringify(coverCrop)'),
+    '{"aspectRatio":"4:3","orientation":"portrait","width":900,"height":1200,"box":{"x":12,"y":8,"width":70,"height":52.5}}'
+  );
+  assert.equal(thumbs.classList.contains('hidden'), false);
+  assert.equal(batchSettings.classList.contains('hidden'), false);
+  assert.equal(process.classList.contains('hidden'), false);
+  assert.equal(body.classList.contains('crop-mode'), false);
+});
+
+test('ordinary thumbnail selection never enters crop workspace', () => {
+  const { thumbs, run } = createSandbox();
+  run("imagePaths = ['/photos/one.jpg']; renderThumbs(imagePaths)");
+
+  findThumb(thumbs, '/photos/one.jpg').dispatch('click');
+
+  assert.equal(run('workspaceMode'), 'gallery');
+  assert.equal(run('selectedImagePath'), '/photos/one.jpg');
+  assert.equal(run('coverImagePath'), null);
+});
