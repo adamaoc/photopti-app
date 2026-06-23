@@ -5,6 +5,7 @@ let imagePaths = [];
 let selectedOutputFolder = null;
 let selectedImagePath = null;
 let coverImagePath = null;
+let workspaceMode = 'gallery';
 let thumbnailUrls = new Map();
 let thumbnailRequestId = 0;
 let inputDialogOpen = false;
@@ -236,6 +237,7 @@ function removePhoto(path) {
   }
   if (coverImagePath === path) {
     coverImagePath = null;
+    workspaceMode = 'gallery';
     resetCoverCrop();
   }
   
@@ -255,6 +257,7 @@ function removePhoto(path) {
     updateFolderSelectionUI();
     updateCoverCropUI();
   }
+  updateWorkspaceUI();
   updateFooterStats();
 }
 
@@ -264,11 +267,39 @@ function selectImage(path) {
 }
 
 function promoteToCover(path) {
+  const isExistingCover = coverImagePath === path;
   coverImagePath = path;
-  resetCoverCrop();
+  if (!isExistingCover) resetCoverCrop();
   renderThumbs(imagePaths);
-  updateCoverCropUI();
+  enterCoverCrop();
   updateFooterStats();
+}
+
+function enterCoverCrop() {
+  if (!coverImagePath) return;
+  workspaceMode = 'crop';
+  updateWorkspaceUI();
+  updateCoverCropUI();
+}
+
+function returnToGallery() {
+  workspaceMode = 'gallery';
+  updateWorkspaceUI();
+  updateCoverCropUI();
+  updateThumbnailSelectionUI();
+}
+
+function updateWorkspaceUI() {
+  const cropMode = workspaceMode === 'crop' && Boolean(coverImagePath);
+  const body = document.body;
+  const thumbs = $('#thumbs');
+  const batchSettings = $('#batchSettings');
+  const process = $('#process');
+
+  if (body) body.classList.toggle('crop-mode', cropMode);
+  if (thumbs) thumbs.classList.toggle('hidden', cropMode || imagePaths.length === 0);
+  if (batchSettings) batchSettings.classList.toggle('hidden', cropMode);
+  if (process) process.classList.toggle('hidden', cropMode);
 }
 
 function getThumbnailLabel(path, isSelected, isCover) {
@@ -350,10 +381,11 @@ function updateCoverCropUI() {
   const scaleValue = $('#coverCropScaleValue');
   const width = $('#coverWidth');
   const height = $('#coverHeight');
+  const orientation = $('#coverOrientation');
 
   if (!editor || !controls || !img || !box) return;
 
-  if (!coverImagePath) {
+  if (!coverImagePath || workspaceMode !== 'crop') {
     editor.classList.add('hidden');
     controls.classList.add('hidden');
     img.removeAttribute('src');
@@ -372,6 +404,11 @@ function updateCoverCropUI() {
   if (scaleValue) scaleValue.textContent = String(Math.round(coverCrop.box.width));
   if (width) width.value = String(coverCrop.width);
   if (height) height.value = String(coverCrop.height);
+  if (orientation) {
+    const label = coverCrop.orientation === 'portrait' ? 'Portrait' : 'Landscape';
+    orientation.textContent = label;
+    orientation.setAttribute('aria-label', `Orientation: ${label}. Activate to flip`);
+  }
 
   box.style.left = `${coverCrop.box.x}%`;
   box.style.top = `${coverCrop.box.y}%`;
@@ -396,8 +433,11 @@ function initCoverCropControls() {
   const scale = $('#coverCropScale');
   const width = $('#coverWidth');
   const height = $('#coverHeight');
+  const backToGallery = $('#backToGallery');
 
   if (!stage || !box || !handle) return;
+
+  if (backToGallery) backToGallery.addEventListener('click', returnToGallery);
 
   let dragState = null;
 
@@ -561,8 +601,8 @@ function renderThumbs(imagePaths) {
     div.appendChild(removeBtn);
     const coverBtn = document.createElement('button');
     coverBtn.className = 'thumb-cover-action';
-    coverBtn.setAttribute('aria-label', isCover ? `${getFileName(p)} is the cover image` : `Promote ${getFileName(p)} to cover`);
-    coverBtn.setAttribute('title', isCover ? 'Current cover image' : 'Promote to cover');
+    coverBtn.setAttribute('aria-label', isCover ? `Edit cover crop for ${getFileName(p)}` : `Promote ${getFileName(p)} to cover and edit crop`);
+    coverBtn.setAttribute('title', isCover ? 'Edit cover crop' : 'Promote to cover and edit crop');
     coverBtn.type = 'button';
     coverBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m12 3 2.7 5.47 6.03.88-4.36 4.25 1.03 6-5.4-2.84-5.4 2.84 1.03-6-4.36-4.25 6.03-.88L12 3z"></path></svg>';
     coverBtn.addEventListener('click', (e) => {
@@ -579,7 +619,7 @@ function renderThumbs(imagePaths) {
     frag.appendChild(more);
   }
   thumbs.appendChild(frag);
-  thumbs.classList.remove('hidden');
+  thumbs.classList.toggle('hidden', workspaceMode === 'crop');
   dropzone.classList.add('hidden');
   loadVisibleThumbnails(visiblePaths);
 }
@@ -728,6 +768,7 @@ function initProcess() {
     selectedOutputFolder = null;
     selectedImagePath = null;
     coverImagePath = null;
+    workspaceMode = 'gallery';
     thumbnailUrls = new Map();
     thumbnailRequestId++;
     resetCoverCrop();
@@ -745,6 +786,7 @@ function initProcess() {
     resetBtn.classList.add('hidden');
     btn.classList.remove('hidden');
     updateCoverCropUI();
+    updateWorkspaceUI();
     updateFooterStats();
   });
 
@@ -776,6 +818,7 @@ window.addEventListener('DOMContentLoaded', () => {
   initControls();
   initCoverCropControls();
   initProcess();
+  updateWorkspaceUI();
   updateFooterStats();
 });
 
