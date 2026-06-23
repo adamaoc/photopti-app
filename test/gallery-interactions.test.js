@@ -8,6 +8,10 @@ const renderer = fs.readFileSync(
   path.resolve(__dirname, '..', 'renderer', 'renderer.js'),
   'utf8'
 );
+const cropGeometry = fs.readFileSync(
+  path.resolve(__dirname, '..', 'renderer', 'crop-geometry.js'),
+  'utf8'
+);
 
 class TestElement {
   constructor(tagName = 'div') {
@@ -128,6 +132,7 @@ function createSandbox({ stubThumbnailSelectionUI = false } = {}) {
     Set
   };
   vm.createContext(sandbox);
+  vm.runInContext(cropGeometry, sandbox);
   vm.runInContext(renderer, sandbox);
   const run = (source) => vm.runInContext(source, sandbox);
   run('updateCoverCropUI = () => {}; updateFolderSelectionUI = () => {}; updateFooterStats = () => {}');

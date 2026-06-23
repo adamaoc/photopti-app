@@ -8,6 +8,7 @@ const root = path.resolve(__dirname, '..');
 const html = fs.readFileSync(path.join(root, 'renderer', 'index.html'), 'utf8');
 const css = fs.readFileSync(path.join(root, 'renderer', 'styles.css'), 'utf8');
 const renderer = fs.readFileSync(path.join(root, 'renderer', 'renderer.js'), 'utf8');
+const cropGeometry = fs.readFileSync(path.join(root, 'renderer', 'crop-geometry.js'), 'utf8');
 
 function createElement() {
   const attributes = new Map();
@@ -52,6 +53,7 @@ function createRendererSandbox() {
     Set
   };
   vm.createContext(sandbox);
+  vm.runInContext(cropGeometry, sandbox);
   vm.runInContext(renderer, sandbox);
   return {
     elements,
@@ -94,6 +96,12 @@ test('crop workspace provides accessible gallery navigation and automatic-save g
   assert.match(html, /id="batchSettings"/);
   assert.match(html, /Changes are saved automatically/);
   assert.match(rule('body.crop-mode .container'), /grid-template-columns:/);
+});
+
+test('crop overlay keeps fitted bounds and refreshes after layout changes', () => {
+  assert.match(renderer, /coverCrop\.box = fitted/);
+  assert.match(renderer, /window\.addEventListener\('resize', updateCoverCropUI\)/);
+  assert.match(renderer, /new ResizeObserver\(updateCoverCropUI\)\.observe\(stage\)/);
 });
 
 test('summarizes empty, single, shared-folder, and multi-folder sources', () => {

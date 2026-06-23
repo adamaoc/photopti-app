@@ -84,15 +84,15 @@ test("normalizes percentage mode by disabling fixed width", () => {
   });
 });
 
-test("clamps numeric processing options and sanitizes names in the main process", () => {
+test("clamps batch options, locks cover dimensions, and sanitizes names", () => {
   const options = normalizeProcessOptions({
     output: ' Web:Ready ',
     quality: 500,
     width: -25,
     rename: 'listing*hero',
     cover: {
-      width: 50000,
-      height: -1,
+      width: 1600,
+      height: 200,
       suffix: 'cover*wide',
     },
   });
@@ -101,9 +101,41 @@ test("clamps numeric processing options and sanitizes names in the main process"
   assert.equal(options.quality, 100);
   assert.equal(options.width, 1);
   assert.equal(options.rename, "listing-hero");
-  assert.equal(options.cover.width, 20000);
-  assert.equal(options.cover.height, 1);
+  assert.equal(options.cover.width, 1600);
+  assert.equal(options.cover.height, 900);
   assert.equal(options.cover.suffix, "cover-wide");
+});
+
+test("rejects invalid cover dimensions and creates an exact 9:16 portrait size", () => {
+  for (const value of [0, -1, 1.5, "nope", 20001]) {
+    assert.throws(
+      () => normalizeProcessOptions({ cover: { width: value } }),
+      /Cover dimensions must be whole numbers/
+    );
+  }
+
+  const options = normalizeProcessOptions({
+    cover: {
+      width: 900,
+      height: 1600,
+      aspectRatio: "16:9",
+      orientation: "portrait",
+    },
+  });
+  assert.equal(options.cover.width, 900);
+  assert.equal(options.cover.height, 1600);
+
+  const rounded = normalizeProcessOptions({
+    cover: {
+      width: 563,
+      height: 1000,
+      dimensionAnchor: "height",
+      aspectRatio: "16:9",
+      orientation: "portrait",
+    },
+  });
+  assert.equal(rounded.cover.width, 563);
+  assert.equal(rounded.cover.height, 1000);
 });
 
 test("rejects path traversal in output folder, rename base, and cover suffix", () => {
@@ -169,6 +201,14 @@ test("converts normalized cover crop coordinates to sharp extract values", () =>
   );
 });
 
+test("preserves crop boxes down to the UI minimum", () => {
+  const options = normalizeProcessOptions({
+    cover: { crop: { x: 91, y: 92, width: 9, height: 8 } },
+  });
+
+  assert.deepEqual(options.cover.crop, { x: 91, y: 92, width: 9, height: 8 });
+});
+
 test("creates a separate 16:9 cover output without changing batch output sizing", async () => {
   await withTempDir(async (dir) => {
     const source = path.join(dir, "source.png");
@@ -214,6 +254,91 @@ test("creates a separate 16:9 cover output without changing batch output sizing"
     assert.equal(normalMetadata.width, 600);
     assert.equal(coverMetadata.width, 1920);
     assert.equal(coverMetadata.height, 1080);
+  });
+});
+
+test("creates a 900x1600 portrait cover from the selected source region", async () => {
+  await withTempDir(async (dir) => {
+    const source = path.join(dir, "portrait-source.png");
+    await sharp({
+      create: {
+        width: 200,
+        height: 100,
+        channels: 3,
+        background: "#ff0000",
+      },
+    })
+      .composite([{
+        input: Buffer.from('<svg width="100" height="100"><rect width="100" height="100" fill="#0000ff"/></svg>'),
+        left: 100,
+        top: 0,
+      }])
+      .png()
+      .toFile(source);
+
+    await processImages({
+      paths: [source],
+      options: {
+        output: "Opti",
+        coverImagePath: source,
+        cover: {
+          width: 900,
+          height: 1600,
+          aspectRatio: "16:9",
+          orientation: "portrait",
+          crop: { x: 0, y: 0, width: 28.125, height: 100 },
+        },
+      },
+    });
+
+    const output = sharp(path.join(dir, "Opti", "cover-portrait-source.jpg"));
+    const metadata = await output.metadata();
+    const pixel = await output.extract({ left: 450, top: 800, width: 1, height: 1 }).raw().toBuffer();
+    assert.equal(metadata.width, 900);
+    assert.equal(metadata.height, 1600);
+    assert.ok(pixel[0] > 240 && pixel[1] < 20 && pixel[2] < 20);
+  });
+});
+
+test("creates a free-aspect cover using supplied dimensions and crop", async () => {
+  await withTempDir(async (dir) => {
+    const source = path.join(dir, "free-source.png");
+    await sharp({
+      create: {
+        width: 200,
+        height: 100,
+        channels: 3,
+        background: "#ff0000",
+      },
+    })
+      .composite([{
+        input: Buffer.from('<svg width="100" height="100"><rect width="100" height="100" fill="#0000ff"/></svg>'),
+        left: 100,
+        top: 0,
+      }])
+      .png()
+      .toFile(source);
+
+    await processImages({
+      paths: [source],
+      options: {
+        output: "Opti",
+        coverImagePath: source,
+        cover: {
+          width: 333,
+          height: 777,
+          aspectRatio: "free",
+          crop: { x: 50, y: 0, width: 50, height: 100 },
+        },
+      },
+    });
+
+    const output = sharp(path.join(dir, "Opti", "cover-free-source.jpg"));
+    const metadata = await output.metadata();
+    const pixel = await output.extract({ left: 166, top: 388, width: 1, height: 1 }).raw().toBuffer();
+    assert.equal(metadata.width, 333);
+    assert.equal(metadata.height, 777);
+    assert.ok(pixel[2] > 240 && pixel[0] < 20 && pixel[1] < 20);
   });
 });
 

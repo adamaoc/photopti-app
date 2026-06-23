@@ -1,4 +1,5 @@
 const $ = (s) => document.querySelector(s);
+const CropGeometryApi = globalThis.CropGeometry;
 
 let droppedPaths = [];
 let imagePaths = [];
@@ -9,18 +10,14 @@ let workspaceMode = 'gallery';
 let thumbnailUrls = new Map();
 let thumbnailRequestId = 0;
 let inputDialogOpen = false;
+let coverImageAspectRatio = null;
+let coverDimensionAnchor = 'width';
 let coverCrop = {
   aspectRatio: '16:9',
   orientation: 'landscape',
   width: 1920,
   height: 1080,
   box: { x: 5, y: 24.6875, width: 90, height: 50.625 }
-};
-
-const ASPECT_RATIOS = {
-  '16:9': [16, 9],
-  '1:1': [1, 1],
-  '4:3': [4, 3]
 };
 
 const MAX_VISIBLE_THUMBNAILS = 200;
@@ -321,6 +318,8 @@ function updateThumbnailSelectionUI() {
 }
 
 function resetCoverCrop() {
+  coverImageAspectRatio = null;
+  coverDimensionAnchor = 'width';
   coverCrop = {
     aspectRatio: '16:9',
     orientation: 'landscape',
@@ -331,43 +330,34 @@ function resetCoverCrop() {
 }
 
 function clamp(value, min, max) {
-  return Math.min(Math.max(value, min), max);
+  return CropGeometryApi.clamp(value, min, max);
 }
 
 function getCoverRatio() {
-  if (coverCrop.aspectRatio === 'free') return null;
-  const [wide, tall] = ASPECT_RATIOS[coverCrop.aspectRatio] || ASPECT_RATIOS['16:9'];
-  return coverCrop.orientation === 'portrait' ? tall / wide : wide / tall;
+  return CropGeometryApi.getPresetRatio(coverCrop.aspectRatio, coverCrop.orientation)
+    || CropGeometryApi.getCropRatio(coverCrop.box, coverImageAspectRatio)
+    || (coverCrop.width / coverCrop.height);
 }
 
-function fitCropBoxToRatio(scale = coverCrop.box.width) {
+function fitCropBoxToRatio(scale) {
   const ratio = getCoverRatio();
-  const width = clamp(scale, 10, 100);
-  let nextWidth = width;
-  let nextHeight = coverCrop.aspectRatio === 'free'
-    ? clamp(coverCrop.box.height || width, 10, 100)
-    : width / ratio;
-
-  if (nextHeight > 100) {
-    nextHeight = 100;
-    nextWidth = coverCrop.aspectRatio === 'free' ? nextWidth : nextHeight * ratio;
-  }
-
-  coverCrop.box.width = clamp(nextWidth, 10, 100);
-  coverCrop.box.height = clamp(nextHeight, 10, 100);
-  coverCrop.box.x = clamp(coverCrop.box.x, 0, 100 - coverCrop.box.width);
-  coverCrop.box.y = clamp(coverCrop.box.y, 0, 100 - coverCrop.box.height);
+  if (!(coverImageAspectRatio > 0)) return;
+  coverCrop.box = CropGeometryApi.fitBoxToRatio(
+    coverCrop.box,
+    ratio,
+    coverImageAspectRatio,
+    scale
+  );
 }
 
 function updateCoverOutputDimensions(anchor = 'width') {
-  if (coverCrop.aspectRatio === 'free') return;
-  const [wide, tall] = ASPECT_RATIOS[coverCrop.aspectRatio] || ASPECT_RATIOS['16:9'];
-  const ratio = coverCrop.orientation === 'portrait' ? tall / wide : wide / tall;
-  if (anchor === 'height') {
-    coverCrop.width = Math.max(1, Math.round(coverCrop.height * ratio));
-  } else {
-    coverCrop.height = Math.max(1, Math.round(coverCrop.width / ratio));
-  }
+  coverDimensionAnchor = anchor;
+  const ratio = getCoverRatio();
+  if (!(ratio > 0)) return false;
+  const dimensions = CropGeometryApi.dimensionsForRatio(coverCrop[anchor], anchor, ratio);
+  coverCrop.width = dimensions.width;
+  coverCrop.height = dimensions.height;
+  return true;
 }
 
 function updateCoverCropUI() {
@@ -395,7 +385,8 @@ function updateCoverCropUI() {
   editor.classList.remove('hidden');
   controls.classList.remove('hidden');
   const imageSrc = `file://${coverImagePath}`;
-  if (img.src !== imageSrc) {
+  if (img.dataset.coverPath !== coverImagePath) {
+    img.dataset.coverPath = coverImagePath;
     img.src = imageSrc;
   }
   if (file) file.textContent = coverImagePath.split('/').pop();
@@ -410,10 +401,14 @@ function updateCoverCropUI() {
     orientation.setAttribute('aria-label', `Orientation: ${label}. Activate to flip`);
   }
 
-  box.style.left = `${coverCrop.box.x}%`;
-  box.style.top = `${coverCrop.box.y}%`;
-  box.style.width = `${coverCrop.box.width}%`;
-  box.style.height = `${coverCrop.box.height}%`;
+  const imageRect = img.getBoundingClientRect?.();
+  const stageRect = $('#coverCropStage')?.getBoundingClientRect?.();
+  if (imageRect?.width > 0 && imageRect?.height > 0 && stageRect) {
+    box.style.left = `${imageRect.left - stageRect.left + (coverCrop.box.x / 100) * imageRect.width}px`;
+    box.style.top = `${imageRect.top - stageRect.top + (coverCrop.box.y / 100) * imageRect.height}px`;
+    box.style.width = `${(coverCrop.box.width / 100) * imageRect.width}px`;
+    box.style.height = `${(coverCrop.box.height / 100) * imageRect.height}px`;
+  }
 }
 
 function getPointerPercent(event, element) {
@@ -439,13 +434,24 @@ function initCoverCropControls() {
 
   if (backToGallery) backToGallery.addEventListener('click', returnToGallery);
 
+  const cropImage = $('#coverCropImage');
+  if (cropImage) {
+    cropImage.addEventListener('load', () => {
+      if (!(cropImage.naturalWidth > 0) || !(cropImage.naturalHeight > 0)) return;
+      coverImageAspectRatio = cropImage.naturalWidth / cropImage.naturalHeight;
+      fitCropBoxToRatio();
+      if (coverCrop.aspectRatio === 'free') updateCoverOutputDimensions(coverDimensionAnchor);
+      updateCoverCropUI();
+    });
+  }
+
   let dragState = null;
 
   box.addEventListener('pointerdown', (event) => {
     if (event.target === handle) return;
     event.preventDefault();
     box.setPointerCapture(event.pointerId);
-    const point = getPointerPercent(event, stage);
+    const point = getPointerPercent(event, cropImage || stage);
     dragState = {
       mode: 'move',
       offsetX: point.x - coverCrop.box.x,
@@ -468,19 +474,30 @@ function initCoverCropControls() {
   const onPointerMove = (event) => {
     if (!dragState || !coverImagePath) return;
     if (dragState.mode === 'move') {
-      const point = getPointerPercent(event, stage);
+      const point = getPointerPercent(event, cropImage || stage);
       coverCrop.box.x = clamp(point.x - dragState.offsetX, 0, 100 - coverCrop.box.width);
       coverCrop.box.y = clamp(point.y - dragState.offsetY, 0, 100 - coverCrop.box.height);
     } else {
-      const rect = stage.getBoundingClientRect();
+      const rect = (cropImage || stage).getBoundingClientRect();
       const deltaX = ((event.clientX - dragState.startX) / rect.width) * 100;
       const deltaY = ((event.clientY - dragState.startY) / rect.height) * 100;
-      coverCrop.box.width = clamp(dragState.box.width + deltaX, 10, 100 - dragState.box.x);
+      coverCrop.box.width = clamp(dragState.box.width + deltaX, CropGeometryApi.MIN_CROP_PERCENT, 100 - dragState.box.x);
       if (coverCrop.aspectRatio === 'free') {
-        coverCrop.box.height = clamp(dragState.box.height + deltaY, 10, 100 - dragState.box.y);
+        coverCrop.box.height = clamp(dragState.box.height + deltaY, CropGeometryApi.MIN_CROP_PERCENT, 100 - dragState.box.y);
+        updateCoverOutputDimensions(coverDimensionAnchor);
       } else {
-        const ratio = getCoverRatio();
-        coverCrop.box.height = clamp(coverCrop.box.width / ratio, 10, 100 - dragState.box.y);
+        const normalizedRatio = getCoverRatio() / coverImageAspectRatio;
+        const maxWidth = Math.min(
+          100 - dragState.box.x,
+          (100 - dragState.box.y) * normalizedRatio
+        );
+        const fitted = CropGeometryApi.fitBoxToRatio(
+          dragState.box,
+          getCoverRatio(),
+          coverImageAspectRatio,
+          Math.min(coverCrop.box.width, maxWidth)
+        );
+        coverCrop.box = fitted;
       }
     }
     updateCoverCropUI();
@@ -492,23 +509,34 @@ function initCoverCropControls() {
 
   window.addEventListener('pointermove', onPointerMove);
   window.addEventListener('pointerup', onPointerUp);
+  window.addEventListener('resize', updateCoverCropUI);
+  if (typeof ResizeObserver === 'function') {
+    new ResizeObserver(updateCoverCropUI).observe(stage);
+  }
 
   if (aspect) {
     aspect.addEventListener('change', () => {
       coverCrop.aspectRatio = aspect.value;
       updateCoverOutputDimensions(coverCrop.orientation === 'portrait' ? 'height' : 'width');
-      fitCropBoxToRatio(Math.max(coverCrop.box.width, 70));
+      fitCropBoxToRatio();
       updateCoverCropUI();
     });
   }
 
   if (orientation) {
     orientation.addEventListener('click', () => {
+      const oldRatio = getCoverRatio();
       coverCrop.orientation = coverCrop.orientation === 'landscape' ? 'portrait' : 'landscape';
       const oldWidth = coverCrop.width;
       coverCrop.width = coverCrop.height;
       coverCrop.height = oldWidth;
-      fitCropBoxToRatio(Math.max(coverCrop.box.width, 45));
+      coverDimensionAnchor = coverDimensionAnchor === 'width' ? 'height' : 'width';
+      if (coverCrop.aspectRatio === 'free' && coverImageAspectRatio > 0) {
+        coverCrop.box = CropGeometryApi.fitBoxToRatio(coverCrop.box, 1 / oldRatio, coverImageAspectRatio);
+        updateCoverOutputDimensions(coverDimensionAnchor);
+      } else {
+        fitCropBoxToRatio();
+      }
       updateCoverCropUI();
     });
   }
@@ -522,16 +550,28 @@ function initCoverCropControls() {
 
   if (width) {
     width.addEventListener('input', () => {
-      coverCrop.width = parseInt(width.value, 10) || 1920;
-      updateCoverOutputDimensions();
+      try {
+        coverCrop.width = CropGeometryApi.parseOutputDimension(width.value);
+        width.setCustomValidity('');
+        updateCoverOutputDimensions('width');
+      } catch (error) {
+        width.setCustomValidity(error.message);
+        return;
+      }
       updateCoverCropUI();
     });
   }
 
   if (height) {
     height.addEventListener('input', () => {
-      coverCrop.height = parseInt(height.value, 10) || 1080;
-      updateCoverOutputDimensions('height');
+      try {
+        coverCrop.height = CropGeometryApi.parseOutputDimension(height.value);
+        height.setCustomValidity('');
+        updateCoverOutputDimensions('height');
+      } catch (error) {
+        height.setCustomValidity(error.message);
+        return;
+      }
       updateCoverCropUI();
     });
   }
@@ -717,6 +757,15 @@ function initProcess() {
       status.textContent = 'Drop a folder or images first.';
       return;
     }
+    if (coverImagePath) {
+      const dimensionInputs = [$('#coverWidth'), $('#coverHeight')];
+      const invalidInput = dimensionInputs.find((input) => input && !input.checkValidity());
+      if (invalidInput) {
+        invalidInput.reportValidity();
+        status.textContent = 'Enter valid cover output dimensions before processing.';
+        return;
+      }
+    }
     
     // Check if files are from multiple folders
     if (hasMultipleFolders(droppedPaths) && !selectedOutputFolder) {
@@ -746,6 +795,7 @@ function initProcess() {
         height: coverCrop.height,
         aspectRatio: coverCrop.aspectRatio,
         orientation: coverCrop.orientation,
+        dimensionAnchor: coverDimensionAnchor,
         crop: { ...coverCrop.box },
         suffix: 'cover'
       } : undefined
