@@ -3,6 +3,7 @@ const $ = (s) => document.querySelector(s);
 let droppedPaths = [];
 let imagePaths = [];
 let selectedOutputFolder = null;
+let selectedImagePath = null;
 let coverImagePath = null;
 let thumbnailUrls = new Map();
 let thumbnailRequestId = 0;
@@ -230,6 +231,9 @@ function removePhoto(path) {
   droppedPaths = droppedPaths.filter(p => p !== path);
   imagePaths = imagePaths.filter(p => p !== path);
   thumbnailUrls.delete(path);
+  if (selectedImagePath === path) {
+    selectedImagePath = null;
+  }
   if (coverImagePath === path) {
     coverImagePath = null;
     resetCoverCrop();
@@ -242,6 +246,7 @@ function removePhoto(path) {
     dropzone.classList.remove('hidden');
     droppedPaths = [];
     selectedOutputFolder = null;
+    selectedImagePath = null;
     coverImagePath = null;
     resetCoverCrop();
     $('#folderSelection').classList.add('hidden');
@@ -253,12 +258,35 @@ function removePhoto(path) {
   updateFooterStats();
 }
 
+function selectImage(path) {
+  selectedImagePath = path;
+  updateThumbnailSelectionUI();
+}
+
 function promoteToCover(path) {
   coverImagePath = path;
   resetCoverCrop();
   renderThumbs(imagePaths);
   updateCoverCropUI();
   updateFooterStats();
+}
+
+function getThumbnailLabel(path, isSelected, isCover) {
+  const states = [];
+  if (isSelected) states.push('selected');
+  if (isCover) states.push('cover image');
+  return `${getFileName(path)}${states.length ? `, ${states.join(', ')}` : ''}`;
+}
+
+function updateThumbnailSelectionUI() {
+  document.querySelectorAll('.thumb').forEach((thumb) => {
+    const path = thumb.dataset.path;
+    const isSelected = selectedImagePath === path;
+    const isCover = coverImagePath === path;
+    thumb.classList.toggle('thumb-selected', isSelected);
+    thumb.setAttribute('aria-pressed', String(isSelected));
+    thumb.setAttribute('aria-label', getThumbnailLabel(path, isSelected, isCover));
+  });
 }
 
 function resetCoverCrop() {
@@ -482,19 +510,24 @@ function renderThumbs(imagePaths) {
   const frag = document.createDocumentFragment();
   const visiblePaths = imagePaths.slice(0, MAX_VISIBLE_THUMBNAILS);
   visiblePaths.forEach(p => {
+    const isSelected = selectedImagePath === p;
     const isCover = coverImagePath === p;
     const div = document.createElement('div');
-    div.className = isCover ? 'thumb thumb-cover' : 'thumb';
+    div.className = [
+      'thumb',
+      isSelected ? 'thumb-selected' : '',
+      isCover ? 'thumb-cover' : ''
+    ].filter(Boolean).join(' ');
     div.dataset.path = p;
     div.tabIndex = 0;
     div.setAttribute('role', 'button');
-    div.setAttribute('aria-label', `${p.split('/').pop()}${isCover ? ', cover image' : ', promote to cover image'}`);
-    div.setAttribute('aria-pressed', String(isCover));
-    div.addEventListener('click', () => promoteToCover(p));
+    div.setAttribute('aria-label', getThumbnailLabel(p, isSelected, isCover));
+    div.setAttribute('aria-pressed', String(isSelected));
+    div.addEventListener('click', () => selectImage(p));
     div.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' || e.key === ' ') {
+      if (e.target === div && (e.key === 'Enter' || e.key === ' ')) {
         e.preventDefault();
-        promoteToCover(p);
+        selectImage(p);
       }
     });
     const img = document.createElement('img');
@@ -517,7 +550,9 @@ function renderThumbs(imagePaths) {
     div.appendChild(coverBadge);
     const removeBtn = document.createElement('button');
     removeBtn.className = 'thumb-remove';
-    removeBtn.setAttribute('aria-label', 'Remove photo');
+    removeBtn.type = 'button';
+    removeBtn.setAttribute('aria-label', `Remove ${getFileName(p)}`);
+    removeBtn.setAttribute('title', `Remove ${getFileName(p)}`);
     removeBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>';
     removeBtn.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -526,8 +561,8 @@ function renderThumbs(imagePaths) {
     div.appendChild(removeBtn);
     const coverBtn = document.createElement('button');
     coverBtn.className = 'thumb-cover-action';
-    coverBtn.setAttribute('aria-label', isCover ? 'Cover image selected' : 'Promote to cover image');
-    coverBtn.setAttribute('title', isCover ? 'Cover image selected' : 'Promote to cover image');
+    coverBtn.setAttribute('aria-label', isCover ? `${getFileName(p)} is the cover image` : `Promote ${getFileName(p)} to cover`);
+    coverBtn.setAttribute('title', isCover ? 'Current cover image' : 'Promote to cover');
     coverBtn.type = 'button';
     coverBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m12 3 2.7 5.47 6.03.88-4.36 4.25 1.03 6-5.4-2.84-5.4 2.84 1.03-6-4.36-4.25 6.03-.88L12 3z"></path></svg>';
     coverBtn.addEventListener('click', (e) => {
@@ -691,6 +726,7 @@ function initProcess() {
     droppedPaths = [];
     imagePaths = [];
     selectedOutputFolder = null;
+    selectedImagePath = null;
     coverImagePath = null;
     thumbnailUrls = new Map();
     thumbnailRequestId++;

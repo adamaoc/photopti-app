@@ -260,6 +260,14 @@ body {
   border-color: var(--accent);
   box-shadow: 0 0 0 3px rgba(90, 142, 202, 0.2);
 }
+.thumb-selected {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(90, 142, 202, 0.5);
+}
+.thumb-selected:hover,
+.thumb-selected:focus-visible {
+  box-shadow: 0 0 0 4px rgba(90, 142, 202, 0.58);
+}
 .thumb-cover {
   border-color: var(--cover);
   box-shadow: 0 0 0 3px rgba(245, 197, 66, 0.28);
@@ -268,6 +276,18 @@ body {
 .thumb-cover:focus-visible {
   border-color: var(--cover);
   box-shadow: 0 0 0 4px rgba(245, 197, 66, 0.34);
+}
+.thumb-selected.thumb-cover {
+  border-color: var(--cover);
+  box-shadow:
+    0 0 0 3px rgba(245, 197, 66, 0.42),
+    inset 0 0 0 3px var(--accent);
+}
+.thumb-selected.thumb-cover:hover,
+.thumb-selected.thumb-cover:focus-visible {
+  box-shadow:
+    0 0 0 4px rgba(245, 197, 66, 0.5),
+    inset 0 0 0 3px var(--accent);
 }
 .thumb:hover .thumb-remove,
 .thumb:focus-within .thumb-remove,
