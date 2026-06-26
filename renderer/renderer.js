@@ -9,6 +9,8 @@ let coverImagePath = null;
 let workspaceMode = 'gallery';
 let thumbnailUrls = new Map();
 let thumbnailRequestId = 0;
+let imageInfoCache = new Map();
+let selectedImageInfoRequestId = 0;
 let inputDialogOpen = false;
 let coverImageAspectRatio = null;
 let coverDimensionAnchor = 'width';
@@ -171,6 +173,77 @@ function getFileName(path) {
   return path.split(/[\\/]/).pop();
 }
 
+function formatFileSize(bytes) {
+  if (!(bytes >= 0)) return 'Unknown';
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function setSelectedImageDetail(id, text, { title } = {}) {
+  const element = $(id);
+  if (!element) return;
+  element.textContent = text;
+  if (title) {
+    element.title = title;
+    element.setAttribute('aria-label', title);
+  } else {
+    element.removeAttribute('title');
+    element.removeAttribute('aria-label');
+  }
+}
+
+async function updateSelectedImageInfo() {
+  const panel = $('#selectedImageInfo');
+  const role = $('#selectedImageRole');
+  if (!panel) return;
+
+  if (!selectedImagePath || workspaceMode === 'crop') {
+    panel.classList.add('hidden');
+    return;
+  }
+
+  panel.classList.remove('hidden');
+  const requestId = ++selectedImageInfoRequestId;
+  const path = selectedImagePath;
+
+  setSelectedImageDetail('#selectedImageName', getFileName(path), { title: getFileName(path) });
+  setSelectedImageDetail('#selectedImageDimensions', 'Loading…');
+  setSelectedImageDetail('#selectedImageSize', 'Loading…');
+  setSelectedImageDetail('#selectedImageFormat', 'Loading…');
+  setSelectedImageDetail('#selectedImageLocation', path, { title: path });
+  if (role) role.classList.toggle('hidden', path !== coverImagePath);
+
+  try {
+    let info = imageInfoCache.get(path);
+    if (!info) {
+      if (!window.photopti?.getImageInfo) throw new Error('Image info is unavailable');
+      info = await window.photopti.getImageInfo(path);
+      imageInfoCache.set(path, info);
+    }
+    if (requestId !== selectedImageInfoRequestId || selectedImagePath !== path) return;
+
+    setSelectedImageDetail('#selectedImageName', info.name || getFileName(path), {
+      title: info.name || getFileName(path)
+    });
+    setSelectedImageDetail(
+      '#selectedImageDimensions',
+      info.width > 0 && info.height > 0 ? `${info.width} × ${info.height}` : 'Unknown'
+    );
+    setSelectedImageDetail('#selectedImageSize', formatFileSize(info.size));
+    setSelectedImageDetail('#selectedImageFormat', info.format || 'Unknown');
+    setSelectedImageDetail('#selectedImageLocation', info.folder || path, {
+      title: info.path || path
+    });
+    if (role) role.classList.toggle('hidden', path !== coverImagePath);
+  } catch (error) {
+    if (requestId !== selectedImageInfoRequestId || selectedImagePath !== path) return;
+    setSelectedImageDetail('#selectedImageDimensions', 'Unavailable');
+    setSelectedImageDetail('#selectedImageSize', 'Unavailable');
+    setSelectedImageDetail('#selectedImageFormat', 'Unavailable');
+  }
+}
+
 function getSourceSummary(paths) {
   if (paths.length === 0) return 'No source selected';
   if (paths.length === 1) return paths[0];
@@ -229,6 +302,7 @@ function removePhoto(path) {
   droppedPaths = droppedPaths.filter(p => p !== path);
   imagePaths = imagePaths.filter(p => p !== path);
   thumbnailUrls.delete(path);
+  imageInfoCache.delete(path);
   if (selectedImagePath === path) {
     selectedImagePath = null;
   }
@@ -256,11 +330,13 @@ function removePhoto(path) {
   }
   updateWorkspaceUI();
   updateFooterStats();
+  updateSelectedImageInfo();
 }
 
 function selectImage(path) {
   selectedImagePath = path;
   updateThumbnailSelectionUI();
+  updateSelectedImageInfo();
 }
 
 function promoteToCover(path) {
@@ -270,6 +346,7 @@ function promoteToCover(path) {
   renderThumbs(imagePaths);
   enterCoverCrop();
   updateFooterStats();
+  updateSelectedImageInfo();
 }
 
 function enterCoverCrop() {
@@ -284,6 +361,7 @@ function returnToGallery() {
   updateWorkspaceUI();
   updateCoverCropUI();
   updateThumbnailSelectionUI();
+  updateSelectedImageInfo();
 }
 
 function updateWorkspaceUI() {
@@ -379,6 +457,7 @@ function updateCoverCropUI() {
     editor.classList.add('hidden');
     controls.classList.add('hidden');
     img.removeAttribute('src');
+    delete img.dataset.coverPath;
     return;
   }
 
@@ -820,6 +899,7 @@ function initProcess() {
     coverImagePath = null;
     workspaceMode = 'gallery';
     thumbnailUrls = new Map();
+    imageInfoCache = new Map();
     thumbnailRequestId++;
     resetCoverCrop();
     $('#dropzone').classList.remove('hidden');
@@ -838,6 +918,7 @@ function initProcess() {
     updateCoverCropUI();
     updateWorkspaceUI();
     updateFooterStats();
+    updateSelectedImageInfo();
   });
 
   // Folder selection button handler
@@ -870,6 +951,7 @@ window.addEventListener('DOMContentLoaded', () => {
   initProcess();
   updateWorkspaceUI();
   updateFooterStats();
+  updateSelectedImageInfo();
 });
 
 // Escape for use in CSS attribute selectors

@@ -104,7 +104,19 @@ function descendants(element) {
   return element.children.flatMap((child) => [child, ...descendants(child)]);
 }
 
-function createSandbox({ stubThumbnailSelectionUI = false } = {}) {
+function bindImageSrc(element) {
+  Object.defineProperty(element, 'src', {
+    get() {
+      return element.getAttribute('src') || '';
+    },
+    set(value) {
+      if (value) element.setAttribute('src', value);
+      else element.removeAttribute('src');
+    }
+  });
+}
+
+function createSandbox({ stubThumbnailSelectionUI = false, withCoverCrop = false } = {}) {
   const thumbs = new TestElement();
   const dropzone = new TestElement();
   const batchSettings = new TestElement();
@@ -116,6 +128,16 @@ function createSandbox({ stubThumbnailSelectionUI = false } = {}) {
     ['#batchSettings', batchSettings],
     ['#process', process]
   ]);
+  if (withCoverCrop) {
+    const coverEditor = new TestElement();
+    const coverControls = new TestElement();
+    const coverCropImage = new TestElement('img');
+    bindImageSrc(coverCropImage);
+    elements.set('#coverEditor', coverEditor);
+    elements.set('#coverControls', coverControls);
+    elements.set('#coverCropImage', coverCropImage);
+    elements.set('#coverCropBox', new TestElement());
+  }
   const document = {
     body,
     querySelector: (selector) => elements.get(selector) || null,
@@ -135,7 +157,11 @@ function createSandbox({ stubThumbnailSelectionUI = false } = {}) {
   vm.runInContext(cropGeometry, sandbox);
   vm.runInContext(renderer, sandbox);
   const run = (source) => vm.runInContext(source, sandbox);
-  run('updateCoverCropUI = () => {}; updateFolderSelectionUI = () => {}; updateFooterStats = () => {}');
+  if (!withCoverCrop) {
+    run('updateCoverCropUI = () => {}; updateFolderSelectionUI = () => {}; updateFooterStats = () => {}');
+  } else {
+    run('updateFolderSelectionUI = () => {}; updateFooterStats = () => {}');
+  }
   if (stubThumbnailSelectionUI) run('updateThumbnailSelectionUI = () => {}');
   return { thumbs, batchSettings, process, body, run };
 }
@@ -230,6 +256,22 @@ test('cover action enters crop workspace and returning preserves all gallery and
   assert.equal(batchSettings.classList.contains('hidden'), false);
   assert.equal(process.classList.contains('hidden'), false);
   assert.equal(body.classList.contains('crop-mode'), false);
+});
+
+test('re-entering cover crop restores image src after returning to gallery', () => {
+  const { thumbs, run } = createSandbox({ withCoverCrop: true, stubThumbnailSelectionUI: true });
+  run("droppedPaths = ['/photos/one.jpg', '/photos/two.jpg']; imagePaths = [...droppedPaths]; renderThumbs(imagePaths)");
+
+  const second = findThumb(thumbs, '/photos/two.jpg');
+  findByClass(second, 'thumb-cover-action').dispatch('click');
+  assert.equal(run("document.querySelector('#coverCropImage').src"), 'file:///photos/two.jpg');
+
+  run('returnToGallery()');
+  assert.equal(run("document.querySelector('#coverCropImage').src"), '');
+
+  findByClass(second, 'thumb-cover-action').dispatch('click');
+  assert.equal(run('workspaceMode'), 'crop');
+  assert.equal(run("document.querySelector('#coverCropImage').src"), 'file:///photos/two.jpg');
 });
 
 test('ordinary thumbnail selection never enters crop workspace', () => {

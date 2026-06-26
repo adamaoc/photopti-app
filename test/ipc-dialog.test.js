@@ -19,6 +19,7 @@ test("registers the native input dialog IPC handler", () => {
   });
 
   assert.equal(typeof handlers.get("show-input-dialog"), "function");
+  assert.equal(typeof handlers.get("get-image-info"), "function");
 });
 
 test("opens a multi-image dialog restricted to supported formats", async () => {

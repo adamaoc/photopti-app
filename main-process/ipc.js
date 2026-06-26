@@ -1,6 +1,7 @@
 const { resolveDroppedToImages } = require("./file-discovery");
 const { processImages } = require("./image-processor");
 const { resolveLogoPath } = require("./logo-paths");
+const { getImageInfo } = require("./image-info");
 const { getThumbnails } = require("./thumbnails");
 const { SUPPORTED_FORMATS } = require("./constants");
 
@@ -61,6 +62,13 @@ function registerIpcHandlers(dependencies = {}) {
 
   ipcMain.handle("get-thumbnails", async (_event, paths, options) => {
     return await getThumbnails(paths, options);
+  });
+
+  ipcMain.handle("get-image-info", async (_event, filePath) => {
+    if (typeof filePath !== "string" || !filePath) {
+      throw new Error("Image path is required");
+    }
+    return await getImageInfo(filePath);
   });
 
   ipcMain.handle("show-folder-dialog", async () => {

@@ -68,14 +68,20 @@ function rule(selector) {
   return match[1];
 }
 
-test('uses a bounded three-region app shell with workspace scrolling', () => {
+test('uses a bounded three-region app shell with gallery-only scrolling', () => {
   assert.match(html, /class="app-shell"/);
   assert.match(html, /<header class="header">[\s\S]*class="workspace"[\s\S]*<footer class="footer">/);
   assert.match(rule('.app-shell'), /grid-template-rows:\s*var\(--header-height\) minmax\(0, 1fr\) var\(--footer-height\)/);
   assert.match(rule('html,\nbody'), /height:\s*100%/);
   assert.match(rule('body'), /overflow:\s*hidden/);
   assert.match(rule('.workspace'), /min-height:\s*0/);
-  assert.match(rule('.workspace'), /overflow-y:\s*auto/);
+  assert.match(rule('.workspace'), /overflow:\s*hidden/);
+  assert.match(rule('.container'), /height:\s*100%/);
+  assert.match(rule('.drop-section'), /overflow-y:\s*auto/);
+  assert.match(rule('.drop-section'), /padding-bottom:\s*56px/);
+  assert.match(rule('.drop-section'), /scrollbar-gutter:\s*stable/);
+  assert.match(rule('.drop-section'), /scrollbar-width:\s*thin/);
+  assert.match(rule('.controls'), /overflow-y:\s*auto/);
   assert.doesNotMatch(rule('.footer'), /position:\s*fixed/);
 });
 
@@ -84,11 +90,29 @@ test('renders selection stats in the footer and removes the old top panel', () =
   const footer = html.match(/<footer class="footer">([\s\S]*?)<\/footer>/)?.[1] || '';
 
   assert.doesNotMatch(main, /id="selection"/);
-  assert.match(footer, /id="footerSource"/);
-  assert.match(footer, /id="footerImageCount"/);
-  assert.match(footer, /id="footerCover"/);
+  assert.doesNotMatch(footer, /class="footer-information"/);
+  assert.match(footer, /class="footer-source-group"[\s\S]*id="footerSource"[\s\S]*class="powered"/);
+  assert.match(footer, /class="footer-stats"[\s\S]*id="footerImageCount"[\s\S]*id="footerCoverStat" class="footer-stat footer-cover hidden"/);
+  assert.match(footer, /class="actions-footer"/);
+  assert.match(rule('.footer-stats'), /flex-direction:\s*column/);
+  assert.match(rule('.hidden'), /display:\s*none\s*!important/);
   assert.match(rule('.footer-stat-value'), /text-overflow:\s*ellipsis/);
   assert.match(rule('.footer-stat-value'), /white-space:\s*nowrap/);
+});
+
+test('shows selected image details below the output folder controls', () => {
+  const batchSettings = html.match(/<div id="batchSettings">([\s\S]*?)<\/div>\s*<div id="coverControls"/)?.[1] || '';
+
+  assert.match(batchSettings, /id="output"/);
+  assert.match(batchSettings, /id="folderSelection"/);
+  assert.match(batchSettings, /id="selectedImageInfo" class="selected-image-info hidden"/);
+  assert.match(batchSettings, /class="sidebar-separator"/);
+  assert.match(batchSettings, /id="selectedImageName"/);
+  assert.match(batchSettings, /id="selectedImageDimensions"/);
+  assert.match(batchSettings, /id="selectedImageSize"/);
+  assert.match(batchSettings, /id="selectedImageFormat"/);
+  assert.match(batchSettings, /id="selectedImageLocation"/);
+  assert.match(rule('.sidebar-separator'), /height:\s*1px/);
 });
 
 test('crop workspace provides accessible gallery navigation and automatic-save guidance', () => {

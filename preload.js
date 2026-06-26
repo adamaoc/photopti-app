@@ -5,6 +5,7 @@ contextBridge.exposeInMainWorld('photopti', {
   listImages: (paths) => ipcRenderer.invoke('list-images', paths),
   showInputDialog: (kind) => ipcRenderer.invoke('show-input-dialog', kind),
   getThumbnails: (paths, options) => ipcRenderer.invoke('get-thumbnails', paths, options),
+  getImageInfo: (filePath) => ipcRenderer.invoke('get-image-info', filePath),
   showFolderDialog: () => ipcRenderer.invoke('show-folder-dialog'),
   cancelProcessing: () => ipcRenderer.invoke('cancel-processing'),
   processImages: (paths, options) => {

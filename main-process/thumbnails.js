@@ -80,5 +80,6 @@ async function getThumbnails(paths, options = {}) {
 
 module.exports = {
   createThumbnail,
+  createThumbnailInput,
   getThumbnails,
 };

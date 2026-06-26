@@ -121,6 +121,35 @@
             <div id="folderDisplay" class="folder-display hidden"></div>
           </div>
         </div>
+        <div id="selectedImageInfo" class="selected-image-info hidden" aria-live="polite">
+          <div class="sidebar-separator" aria-hidden="true"></div>
+          <div class="selected-image-heading">
+            <h3>Selected image</h3>
+            <p id="selectedImageRole" class="selected-image-role hidden">Cover image</p>
+          </div>
+          <dl class="selected-image-details">
+            <div class="selected-image-detail">
+              <dt>Name</dt>
+              <dd id="selectedImageName"></dd>
+            </div>
+            <div class="selected-image-detail">
+              <dt>Dimensions</dt>
+              <dd id="selectedImageDimensions"></dd>
+            </div>
+            <div class="selected-image-detail">
+              <dt>Size</dt>
+              <dd id="selectedImageSize"></dd>
+            </div>
+            <div class="selected-image-detail">
+              <dt>Format</dt>
+              <dd id="selectedImageFormat"></dd>
+            </div>
+            <div class="selected-image-detail selected-image-path">
+              <dt>Location</dt>
+              <dd id="selectedImageLocation"></dd>
+            </div>
+          </dl>
+        </div>
         </div>
         <div id="coverControls" class="cover-controls hidden">
           <div class="control-heading">
@@ -172,26 +201,26 @@
       </div>
 
       <footer class="footer">
-        <div class="footer-information">
-          <div class="footer-stats" aria-label="Current image selection">
-            <div class="footer-stat footer-source">
-              <span class="footer-stat-label">Source</span>
-              <span id="footerSource" class="footer-stat-value" title="No source selected" aria-label="Source: No source selected">No source selected</span>
-            </div>
-            <div class="footer-stat footer-count">
-              <span class="footer-stat-label">Images</span>
-              <span id="footerImageCount" class="footer-stat-value">0</span>
-            </div>
-            <div id="footerCoverStat" class="footer-stat footer-cover hidden">
-              <span class="footer-stat-label">Cover</span>
-              <span id="footerCover" class="footer-stat-value"></span>
-            </div>
+        <div class="footer-source-group">
+          <div class="footer-stat footer-source">
+            <span class="footer-stat-label">Source</span>
+            <span id="footerSource" class="footer-stat-value" title="No source selected" aria-label="Source: No source selected">No source selected</span>
           </div>
           <div class="powered">
             Powered by
             <a href="https://ampnet.media" target="_blank" rel="noopener noreferrer"
               >ampnet (media)</a
             >
+          </div>
+        </div>
+        <div class="footer-stats" aria-label="Current image selection">
+          <div class="footer-stat footer-count">
+            <span class="footer-stat-label">Images</span>
+            <span id="footerImageCount" class="footer-stat-value">0</span>
+          </div>
+          <div id="footerCoverStat" class="footer-stat footer-cover hidden">
+            <span class="footer-stat-label">Cover</span>
+            <span id="footerCover" class="footer-stat-value"></span>
           </div>
         </div>
         <div class="actions-footer">

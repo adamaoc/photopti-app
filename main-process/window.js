@@ -1,5 +1,5 @@
 const path = require("path");
-const { BrowserWindow } = require("electron");
+const { app, BrowserWindow } = require("electron");
 const { resolveLogoPath } = require("./logo-paths");
 
 function createWindow() {
@@ -23,6 +23,10 @@ function createWindow() {
   });
 
   win.loadFile(path.join(__dirname, "..", "renderer", "index.html"));
+
+  if (!app.isPackaged) {
+    win.webContents.openDevTools();
+  }
 }
 
 module.exports = {
