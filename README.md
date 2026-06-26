@@ -2,6 +2,32 @@
 
 Photopti is a local-first desktop app for photographers, designers, and web teams who need to resize and compress batches of images without uploading them to a service. It also creates a precisely cropped cover image alongside the batch output.
 
+## Screenshots
+
+### Start with drag and drop
+
+Drop files or a folder into the workspace, or click to browse. Batch settings stay visible on the right so width, quality, rename base, and output folder are ready before processing begins.
+
+![Photopti empty state with drag-and-drop zone and batch settings](assets/demo/Photo-Opti-demo-002.jpg)
+
+### Review a large gallery
+
+Imported images appear as a scrollable thumbnail grid. The sidebar stays fixed while you browse, and the footer tracks how many images are loaded. When files come from more than one folder, Photopti prompts you to choose a shared output location.
+
+![Photopti gallery with many thumbnails and multi-folder output selection](assets/demo/Photo-Opti-demo-004.jpg)
+
+### Inspect a selected image
+
+Click any thumbnail to see its metadata in the sidebar: filename, dimensions, file size, format, and source location. If that image is the cover, the panel labels it accordingly so you can confirm the hero asset before processing.
+
+![Photopti selected image details with a cover image marked in the gallery](assets/demo/Photo-Opti-demo-001.jpg)
+
+### Crop a dedicated cover image
+
+Promote one image to cover and switch into the crop workspace. Adjust aspect ratio, orientation, crop size, and output dimensions on a live preview. Changes are saved automatically and used when you process the batch from the gallery.
+
+![Photopti cover crop editor with aspect controls and live crop overlay](assets/demo/Photo-Opti-demo-003.jpg)
+
 ## What it does
 
 - Select image files or recursively discover images in a folder.
@@ -69,7 +95,7 @@ main.js                 Electron lifecycle entry point
 main-process/           Windows, IPC, discovery, thumbnails, and processing
 preload.js              Restricted renderer-to-main bridge
 renderer/               HTML, CSS, UI behavior, and crop geometry
-assets/                 Application logo and platform icons
+assets/                 Application logo, platform icons, and demo screenshots
 build/                  Packaging entitlements and notarization hook
 scripts/                Repository checks
 test/                   Node test suite
