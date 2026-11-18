@@ -53,7 +53,7 @@ test("opens a folder dialog and treats cancellation as no selection", async () =
   const paths = await handler(null, "folder");
 
   assert.equal(paths, null);
-  assert.deepEqual(receivedOptions.properties, ["openDirectory"]);
+  assert.deepEqual(receivedOptions.properties, ["openDirectory", "multiSelections"]);
 });
 
 test("prevents overlapping native input dialogs", async () => {
