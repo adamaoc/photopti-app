@@ -11,9 +11,15 @@
   "bugs": {
     "url": "https://github.com/adamaoc/photopti-app/issues"
   },
-  "keywords": ["electron", "image-optimization", "image-resize", "photo", "sharp"],
+  "keywords": [
+    "electron",
+    "image-optimization",
+    "image-resize",
+    "photo",
+    "sharp"
+  ],
   "engines": {
-    "node": ">=20"
+    "node": ">=22.12"
   },
   "main": "main.js",
   "build": {
@@ -80,17 +86,22 @@
     "dist:mac": "electron-builder --mac",
     "dist:win": "electron-builder --win",
     "dist:linux": "electron-builder --linux",
-    "lint": "node scripts/check-syntax.js",
-    "test": "node --test",
+    "lint": "node scripts/check-syntax.js && eslint .",
+    "test": "node --test \"test/*.test.js\"",
+    "test:e2e": "node --test \"e2e/*.test.js\"",
     "check": "npm run lint && npm test"
   },
   "dependencies": {
-    "heic-convert": "^2.1.0",
-    "sharp": "^0.33.4"
+    "heic-decode": "^2.1.0",
+    "sharp": "^0.35.5"
   },
   "devDependencies": {
-    "@electron/notarize": "^2.2.0",
-    "electron": "^30.0.0",
-    "electron-builder": "^24.13.3"
+    "@electron/notarize": "^3.1.2",
+    "@eslint/js": "^10.0.1",
+    "electron": "^45.3.4",
+    "electron-builder": "^26.18.0",
+    "eslint": "^10.15.0",
+    "globals": "^17.14.0",
+    "playwright-core": "^1.63.0"
   }
 }

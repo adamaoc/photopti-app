@@ -1,5 +1,4 @@
 const path = require("path");
-const { notarize } = require("@electron/notarize");
 
 exports.default = async function notarizeApp(context) {
   const { electronPlatformName, appOutDir } = context;
@@ -21,6 +20,8 @@ exports.default = async function notarizeApp(context) {
     return;
   }
 
+  // @electron/notarize v3 is published as an ES module.
+  const { notarize } = await import("@electron/notarize");
   const appName = context.packager.appInfo.productFilename;
   const credentials = hasApiKeyCredentials
     ? {
@@ -36,7 +37,6 @@ exports.default = async function notarizeApp(context) {
 
   console.log("[notarize] Submitting for notarization…");
   await notarize({
-    appBundleId: "com.adamaoc.photopti",
     appPath: path.join(appOutDir, `${appName}.app`),
     ...credentials,
   });
