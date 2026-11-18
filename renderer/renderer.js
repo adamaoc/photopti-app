@@ -24,19 +24,23 @@ let thumbnailPageObserver = null;
 let coverImageAspectRatio = null;
 let coverDimensionAnchor = 'width';
 let coverCrop = createDefaultCoverCrop();
+// While the crop editor is open: the cover state to restore on Cancel, and
+// whether anything has changed since the editor opened.
+let coverEditSession = null;
 
 const THUMBNAIL_PAGE_SIZE = 200;
 const THUMBNAIL_BATCH_SIZE = 40;
 const CROP_KEY_STEP = 1;
 const CROP_KEY_LARGE_STEP = 5;
 const CROP_KEY_RESIZE_STEP = 2;
+const DISCARD_CONFIRM_MS = 4000;
 
 function createDefaultCoverCrop() {
   return {
     aspectRatio: '16:9',
     orientation: 'landscape',
-    width: 1920,
-    height: 1080,
+    width: 1600,
+    height: 900,
     box: { x: 5, y: 24.6875, width: 90, height: 50.625 }
   };
 }
@@ -237,6 +241,11 @@ async function updateSelectedImageInfo() {
     return;
   }
 
+  const coverAction = $('#selectedImageCoverAction');
+  if (coverAction) {
+    coverAction.textContent = selectedImagePath === coverImagePath ? 'Edit cover crop' : 'Set as cover';
+  }
+
   panel.classList.remove('hidden');
   const requestId = ++selectedImageInfoRequestId;
   const path = selectedImagePath;
@@ -356,6 +365,7 @@ function removePhoto(path) {
   }
   if (coverImagePath === path) {
     coverImagePath = null;
+    coverEditSession = null;
     workspaceMode = 'gallery';
     resetCoverCrop();
   }
@@ -375,6 +385,7 @@ function removePhoto(path) {
   updateWorkspaceUI();
   updateFooterStats();
   updateSelectedImageInfo();
+  updateCoverSummary();
 }
 
 function selectImage(path) {
@@ -383,29 +394,170 @@ function selectImage(path) {
   updateSelectedImageInfo();
 }
 
+function snapshotCoverState() {
+  return {
+    path: coverImagePath,
+    crop: JSON.parse(JSON.stringify(coverCrop)),
+    anchor: coverDimensionAnchor,
+    aspectRatio: coverImageAspectRatio
+  };
+}
+
+function restoreCoverState(state) {
+  coverImagePath = state.path;
+  coverCrop = JSON.parse(JSON.stringify(state.crop));
+  coverDimensionAnchor = state.anchor;
+  coverImageAspectRatio = state.aspectRatio;
+}
+
 function promoteToCover(path) {
+  if (workspaceMode === 'crop') return;
+  const previous = snapshotCoverState();
   const isExistingCover = coverImagePath === path;
   coverImagePath = path;
   if (!isExistingCover) resetCoverCrop();
   renderThumbs(imagePaths);
-  enterCoverCrop();
+  enterCoverCrop({ previous, isNewCover: !isExistingCover });
   updateFooterStats();
   updateSelectedImageInfo();
 }
 
-function enterCoverCrop() {
+function enterCoverCrop({ previous = snapshotCoverState(), isNewCover = false } = {}) {
   if (!coverImagePath) return;
+  coverEditSession = { previous, isNewCover, dirty: isNewCover, discardArmedUntil: 0 };
   workspaceMode = 'crop';
+  setStatus('');
   updateWorkspaceUI();
   updateCoverCropUI();
+  updateCoverEditState();
+  $('#coverCropBox')?.focus?.({ preventScroll: true });
 }
 
-function returnToGallery() {
+function markCoverDirty() {
+  if (!coverEditSession) return;
+  coverEditSession.dirty = true;
+  coverEditSession.discardArmedUntil = 0;
+  updateCoverEditState();
+}
+
+function updateCoverEditState() {
+  const state = $('#coverEditState');
+  if (!state) return;
+  const session = coverEditSession;
+  const armed = Boolean(session && session.discardArmedUntil > Date.now());
+  let text = '';
+  if (armed) text = 'Press Esc again to discard your changes';
+  else if (session?.dirty) text = session.isNewCover ? 'New cover, not saved yet' : 'Unsaved changes';
+  state.textContent = text;
+  state.classList.toggle('is-armed', armed);
+  state.classList.toggle('is-dirty', !armed && Boolean(session?.dirty));
+}
+
+function leaveCropMode() {
+  coverEditSession = null;
   workspaceMode = 'gallery';
   updateWorkspaceUI();
   updateCoverCropUI();
+  updateCoverEditState();
   updateThumbnailSelectionUI();
   updateSelectedImageInfo();
+  updateCoverSummary();
+}
+
+function describeCover() {
+  const aspect = coverCrop.aspectRatio === 'free' ? 'Free' : coverCrop.aspectRatio;
+  const orientation = coverCrop.orientation === 'portrait' ? 'portrait' : 'landscape';
+  return `${aspect} ${orientation} · ${coverCrop.width} × ${coverCrop.height} px`;
+}
+
+/** Keeps the crop as the cover for the next batch and returns to the gallery. */
+function saveCoverCrop() {
+  if (!coverImagePath || workspaceMode !== 'crop') return false;
+  const invalidInput = [$('#coverWidth'), $('#coverHeight')].find((input) => input && !input.checkValidity());
+  if (invalidInput) {
+    invalidInput.reportValidity();
+    setStatus('Enter valid cover output dimensions before saving.');
+    return false;
+  }
+  leaveCropMode();
+  setStatus(`Cover saved: ${getFileName(coverImagePath)} (${describeCover()}). It is created when you process the batch.`);
+  const summary = $('#coverSummary');
+  if (summary) {
+    summary.scrollIntoView?.({ block: 'nearest' });
+    summary.classList.remove('just-saved');
+    void summary.offsetWidth; // Restart the highlight animation.
+    summary.classList.add('just-saved');
+  }
+  return true;
+}
+
+/** Discards edits made since the editor opened, including a new cover choice. */
+function cancelCoverCrop() {
+  if (workspaceMode !== 'crop') return;
+  const session = coverEditSession;
+  if (session) restoreCoverState(session.previous);
+  renderThumbs(imagePaths);
+  leaveCropMode();
+  updateFooterStats();
+  if (session?.isNewCover) {
+    setStatus(coverImagePath ? `Cover unchanged: ${getFileName(coverImagePath)}.` : 'No cover set.');
+  } else {
+    setStatus(session?.dirty ? 'Crop changes discarded. The saved cover is unchanged.' : '');
+  }
+}
+
+/** Esc cancels straight away when nothing changed; otherwise it must be pressed twice. */
+function requestCancelCoverCrop() {
+  const session = coverEditSession;
+  if (session?.dirty && !(session.discardArmedUntil > Date.now())) {
+    session.discardArmedUntil = Date.now() + DISCARD_CONFIRM_MS;
+    updateCoverEditState();
+    setTimeout(updateCoverEditState, DISCARD_CONFIRM_MS + 50);
+    return false;
+  }
+  cancelCoverCrop();
+  return true;
+}
+
+function removeCover() {
+  if (!coverImagePath) return;
+  const name = getFileName(coverImagePath);
+  coverImagePath = null;
+  coverEditSession = null;
+  resetCoverCrop();
+  renderThumbs(imagePaths);
+  updateFooterStats();
+  updateSelectedImageInfo();
+  updateCoverSummary();
+  setStatus(`${name} is no longer the cover.`);
+}
+
+function updateCoverSummary() {
+  const summary = $('#coverSummary');
+  if (!summary) return;
+  const visible = Boolean(coverImagePath) && workspaceMode !== 'crop';
+  summary.classList.toggle('hidden', !visible);
+  if (!visible) return;
+
+  const name = $('#coverSummaryName');
+  const meta = $('#coverSummaryMeta');
+  const preview = $('#coverSummaryPreview');
+  const img = $('#coverSummaryImage');
+  name.textContent = getFileName(coverImagePath);
+  name.title = coverImagePath;
+  meta.textContent = describeCover();
+  preview.style.aspectRatio = `${coverCrop.width} / ${coverCrop.height}`;
+  const thumbnailUrl = thumbnailUrls.get(coverImagePath);
+  if (thumbnailUrl) {
+    const { x, y, width, height } = coverCrop.box;
+    img.src = thumbnailUrl;
+    // Show only the saved crop region of the (upright) thumbnail.
+    img.style.setProperty('object-view-box', `inset(${y}% ${100 - x - width}% ${100 - y - height}% ${x}%)`);
+    img.classList.remove('hidden');
+  } else {
+    img.removeAttribute('src');
+    img.classList.add('hidden');
+  }
 }
 
 function updateWorkspaceUI() {
@@ -587,11 +739,16 @@ function initCoverCropControls() {
   const scale = $('#coverCropScale');
   const width = $('#coverWidth');
   const height = $('#coverHeight');
-  const backToGallery = $('#backToGallery');
 
   if (!stage || !box || !handle) return;
 
-  if (backToGallery) backToGallery.addEventListener('click', returnToGallery);
+  $('#saveCoverCrop')?.addEventListener('click', saveCoverCrop);
+  $('#cancelCoverCrop')?.addEventListener('click', cancelCoverCrop);
+  $('#editCover')?.addEventListener('click', () => promoteToCover(coverImagePath));
+  $('#removeCover')?.addEventListener('click', removeCover);
+  $('#selectedImageCoverAction')?.addEventListener('click', () => {
+    if (selectedImagePath) promoteToCover(selectedImagePath);
+  });
 
   const cropImage = $('#coverCropImage');
   if (cropImage) {
@@ -620,12 +777,20 @@ function initCoverCropControls() {
   });
 
   box.addEventListener('keydown', (event) => {
-    if (handleCropKey(event)) event.preventDefault();
+    if (handleCropKey(event)) {
+      event.preventDefault();
+      markCoverDirty();
+    }
   });
 
   document.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape' && workspaceMode === 'crop') {
-      returnToGallery();
+    if (workspaceMode !== 'crop') return;
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      requestCancelCoverCrop();
+    } else if (event.key === 'Enter' && event.target === box) {
+      event.preventDefault();
+      saveCoverCrop();
     }
   });
 
@@ -643,6 +808,7 @@ function initCoverCropControls() {
 
   const onPointerMove = (event) => {
     if (!dragState || !coverImagePath) return;
+    markCoverDirty();
     if (dragState.mode === 'move') {
       const point = getPointerPercent(event, cropImage || stage);
       coverCrop.box.x = clamp(point.x - dragState.offsetX, 0, 100 - coverCrop.box.width);
@@ -689,6 +855,7 @@ function initCoverCropControls() {
       coverCrop.aspectRatio = aspect.value;
       updateCoverOutputDimensions(coverCrop.orientation === 'portrait' ? 'height' : 'width');
       fitCropBoxToRatio();
+      markCoverDirty();
       updateCoverCropUI();
     });
   }
@@ -707,6 +874,7 @@ function initCoverCropControls() {
       } else {
         fitCropBoxToRatio();
       }
+      markCoverDirty();
       updateCoverCropUI();
     });
   }
@@ -714,6 +882,7 @@ function initCoverCropControls() {
   if (scale) {
     scale.addEventListener('input', () => {
       fitCropBoxToRatio(parseFloat(scale.value) || 90);
+      markCoverDirty();
       updateCoverCropUI();
     });
   }
@@ -724,6 +893,7 @@ function initCoverCropControls() {
         coverCrop.width = CropGeometryApi.parseOutputDimension(width.value);
         width.setCustomValidity('');
         updateCoverOutputDimensions('width');
+        markCoverDirty();
       } catch (error) {
         width.setCustomValidity(error.message);
         return;
@@ -738,6 +908,7 @@ function initCoverCropControls() {
         coverCrop.height = CropGeometryApi.parseOutputDimension(height.value);
         height.setCustomValidity('');
         updateCoverOutputDimensions('height');
+        markCoverDirty();
       } catch (error) {
         height.setCustomValidity(error.message);
         return;
@@ -905,6 +1076,7 @@ async function loadVisibleThumbnails(paths) {
           img.src = dataUrl;
           img.classList.remove('thumb-loading');
         }
+        if (filePath === coverImagePath) updateCoverSummary();
       } else {
         failedThumbnails.add(filePath);
         if (thumb) thumb.classList.add('thumb-unavailable');
@@ -1169,6 +1341,7 @@ function initProcess() {
     selectedOutputFolder = null;
     selectedImagePath = null;
     coverImagePath = null;
+    coverEditSession = null;
     workspaceMode = 'gallery';
     thumbnailUrls = new Map();
     failedThumbnails = new Set();
@@ -1192,6 +1365,7 @@ function initProcess() {
     updateWorkspaceUI();
     updateFooterStats();
     updateSelectedImageInfo();
+    updateCoverSummary();
   });
 
   const folderSelectBtn = $('#folderSelectBtn');

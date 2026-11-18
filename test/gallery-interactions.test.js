@@ -154,6 +154,7 @@ function createSandbox({ stubThumbnailSelectionUI = false, withCoverCrop = false
   const sandbox = {
     document,
     window: { addEventListener: () => {} },
+    setTimeout: () => 0,
     Map,
     Set
   };
@@ -233,7 +234,7 @@ test('removing a selected cover clears both states and closes crop mode', () => 
   assert.equal(run('JSON.stringify(imagePaths)'), '["/photos/one.jpg"]');
 });
 
-test('cover action enters crop workspace and returning preserves all gallery and crop state', () => {
+test('cover action enters crop workspace and saving preserves all gallery and crop state', () => {
   const { thumbs, batchSettings, process, body, run } = createSandbox({ stubThumbnailSelectionUI: true });
   run("sourceRoots = ['/photos']; imagePaths = ['/photos/one.jpg', '/photos/two.jpg']; selectedImagePath = '/photos/one.jpg'; renderThumbs(imagePaths)");
 
@@ -248,7 +249,7 @@ test('cover action enters crop workspace and returning preserves all gallery and
   assert.equal(process.classList.contains('hidden'), true);
   assert.equal(body.classList.contains('crop-mode'), true);
 
-  run("coverCrop.aspectRatio = '4:3'; coverCrop.orientation = 'portrait'; coverCrop.width = 900; coverCrop.height = 1200; coverCrop.box = { x: 12, y: 8, width: 70, height: 52.5 }; returnToGallery()");
+  run("coverCrop.aspectRatio = '4:3'; coverCrop.orientation = 'portrait'; coverCrop.width = 900; coverCrop.height = 1200; coverCrop.box = { x: 12, y: 8, width: 70, height: 52.5 }; saveCoverCrop()");
 
   assert.equal(run('workspaceMode'), 'gallery');
   assert.equal(run('selectedImagePath'), '/photos/one.jpg');
@@ -263,7 +264,7 @@ test('cover action enters crop workspace and returning preserves all gallery and
   assert.equal(body.classList.contains('crop-mode'), false);
 });
 
-test('re-entering cover crop restores image src after returning to gallery', () => {
+test('re-entering cover crop restores image src after saving', () => {
   const { thumbs, run } = createSandbox({ withCoverCrop: true, stubThumbnailSelectionUI: true });
   run("sourceRoots = ['/photos']; imagePaths = ['/photos/one.jpg', '/photos/two.jpg']; renderThumbs(imagePaths)");
 
@@ -271,7 +272,7 @@ test('re-entering cover crop restores image src after returning to gallery', () 
   findByClass(second, 'thumb-cover-action').dispatch('click');
   assert.equal(run("document.querySelector('#coverCropImage').src"), 'file:///photos/two.jpg');
 
-  run('returnToGallery()');
+  run('saveCoverCrop()');
   assert.equal(run("document.querySelector('#coverCropImage').src"), '');
 
   findByClass(second, 'thumb-cover-action').dispatch('click');
@@ -346,4 +347,85 @@ test('arrow and resize keys move and scale the crop box inside the image', () =>
   assert.equal(run("handleCropKey({ key: 'a', shiftKey: false })"), false);
   run("workspaceMode = 'gallery'");
   assert.equal(run("handleCropKey({ key: 'ArrowRight', shiftKey: false })"), false);
+});
+
+test('new covers default to 16:9 at 1600 x 900', () => {
+  const { thumbs, run } = createSandbox({ stubThumbnailSelectionUI: true });
+  run("imagePaths = ['/photos/one.jpg']; renderThumbs(imagePaths)");
+  findByClass(findThumb(thumbs, '/photos/one.jpg'), 'thumb-cover-action').dispatch('click');
+
+  assert.equal(run('coverCrop.aspectRatio'), '16:9');
+  assert.equal(run('coverCrop.width'), 1600);
+  assert.equal(run('coverCrop.height'), 900);
+});
+
+test('cancel restores the previous cover and crop, save keeps the new one', () => {
+  const { thumbs, run } = createSandbox({ stubThumbnailSelectionUI: true });
+  run("imagePaths = ['/photos/one.jpg', '/photos/two.jpg']; renderThumbs(imagePaths)");
+
+  // Choose and save a cover with a custom crop.
+  findByClass(findThumb(thumbs, '/photos/one.jpg'), 'thumb-cover-action').dispatch('click');
+  run("coverCrop.box = { x: 10, y: 10, width: 60, height: 40 }; markCoverDirty(); saveCoverCrop()");
+  assert.equal(run('workspaceMode'), 'gallery');
+  assert.equal(run('coverImagePath'), '/photos/one.jpg');
+
+  // Re-open, change the crop, then cancel: the saved crop comes back.
+  findByClass(findThumb(thumbs, '/photos/one.jpg'), 'thumb-cover-action').dispatch('click');
+  run("coverCrop.box = { x: 0, y: 0, width: 30, height: 20 }; markCoverDirty(); cancelCoverCrop()");
+  assert.equal(run('workspaceMode'), 'gallery');
+  assert.equal(run('JSON.stringify(coverCrop.box)'), '{"x":10,"y":10,"width":60,"height":40}');
+
+  // Promote a different image, then cancel: the first image stays the cover.
+  findByClass(findThumb(thumbs, '/photos/two.jpg'), 'thumb-cover-action').dispatch('click');
+  assert.equal(run('coverImagePath'), '/photos/two.jpg');
+  run('cancelCoverCrop()');
+  assert.equal(run('coverImagePath'), '/photos/one.jpg');
+  assert.equal(run('JSON.stringify(coverCrop.box)'), '{"x":10,"y":10,"width":60,"height":40}');
+
+  // Promote it again and save: now it is the cover.
+  findByClass(findThumb(thumbs, '/photos/two.jpg'), 'thumb-cover-action').dispatch('click');
+  run('saveCoverCrop()');
+  assert.equal(run('coverImagePath'), '/photos/two.jpg');
+});
+
+test('cancelling a first-time cover leaves no cover', () => {
+  const { thumbs, run } = createSandbox({ stubThumbnailSelectionUI: true });
+  run("imagePaths = ['/photos/one.jpg']; renderThumbs(imagePaths)");
+  findByClass(findThumb(thumbs, '/photos/one.jpg'), 'thumb-cover-action').dispatch('click');
+
+  run('cancelCoverCrop()');
+
+  assert.equal(run('coverImagePath'), null);
+  assert.equal(findThumb(thumbs, '/photos/one.jpg').classList.contains('thumb-cover'), false);
+});
+
+test('Esc discards unsaved crop edits only when pressed twice', () => {
+  const { thumbs, run } = createSandbox({ stubThumbnailSelectionUI: true });
+  run("imagePaths = ['/photos/one.jpg']; renderThumbs(imagePaths)");
+  findByClass(findThumb(thumbs, '/photos/one.jpg'), 'thumb-cover-action').dispatch('click');
+  run('saveCoverCrop()');
+
+  // Nothing changed yet: Esc closes the editor at once.
+  findByClass(findThumb(thumbs, '/photos/one.jpg'), 'thumb-cover-action').dispatch('click');
+  assert.equal(run('requestCancelCoverCrop()'), true);
+  assert.equal(run('workspaceMode'), 'gallery');
+
+  // After an edit, the first Esc only warns.
+  findByClass(findThumb(thumbs, '/photos/one.jpg'), 'thumb-cover-action').dispatch('click');
+  run("coverCrop.box.x = 0; markCoverDirty()");
+  assert.equal(run('requestCancelCoverCrop()'), false);
+  assert.equal(run('workspaceMode'), 'crop');
+  assert.equal(run('requestCancelCoverCrop()'), true);
+  assert.equal(run('workspaceMode'), 'gallery');
+  assert.equal(run('coverCrop.box.x'), 5);
+});
+
+test('removing the cover clears it without touching the gallery', () => {
+  const { thumbs, run } = createSandbox({ stubThumbnailSelectionUI: true });
+  run("imagePaths = ['/photos/one.jpg', '/photos/two.jpg']; renderThumbs(imagePaths)");
+  findByClass(findThumb(thumbs, '/photos/two.jpg'), 'thumb-cover-action').dispatch('click');
+  run('saveCoverCrop(); removeCover()');
+
+  assert.equal(run('coverImagePath'), null);
+  assert.equal(run('imagePaths.length'), 2);
 });

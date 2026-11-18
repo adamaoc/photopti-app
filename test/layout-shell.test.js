@@ -117,11 +117,22 @@ test('shows selected image details below the output folder controls', () => {
   assert.match(rule('.sidebar-separator'), /height:\s*1px/);
 });
 
-test('crop workspace provides accessible gallery navigation and automatic-save guidance', () => {
-  assert.match(html, /id="backToGallery"[\s\S]*aria-label="Back to gallery"/);
-  assert.match(html, /id="batchSettings"/);
-  assert.match(html, /Changes are saved automatically/);
+test('crop workspace offers explicit save and cancel instead of an ambiguous back button', () => {
+  assert.doesNotMatch(html, /id="backToGallery"/);
+  assert.match(html, /id="cropActions"[\s\S]*id="cancelCoverCrop"[\s\S]*id="saveCoverCrop"[^>]*>Save cover</);
+  assert.match(html, /id="coverEditState"[^>]*role="status"/);
+  assert.match(html, /Click <strong>Save cover<\/strong>/);
+  assert.match(html, /id="coverWidth"[^>]*value="1600"/);
+  assert.match(html, /id="coverHeight"[^>]*value="900"/);
   assert.match(rule('body.crop-mode .container'), /grid-template-columns:/);
+  assert.match(rule('body.crop-mode .gallery-action'), /display:\s*none/);
+  assert.match(rule('body.crop-mode .crop-actions'), /display:\s*flex/);
+});
+
+test('shows the saved cover in the sidebar with edit and remove actions', () => {
+  const batchSettings = html.match(/<div id="batchSettings">([\s\S]*?)<\/div>\s*<div id="coverControls"/)?.[1] || '';
+  assert.match(batchSettings, /id="coverSummary" class="cover-summary hidden"[\s\S]*id="editCover"[\s\S]*id="removeCover"/);
+  assert.match(batchSettings, /id="selectedImageCoverAction"/);
 });
 
 test('crop overlay keeps fitted bounds and refreshes after layout changes', () => {

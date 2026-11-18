@@ -35,8 +35,8 @@ test("normalizes missing process options to current defaults", () => {
     rename: undefined,
     coverImagePath: null,
     cover: {
-      width: 1920,
-      height: 1080,
+      width: 1600,
+      height: 900,
       aspectRatio: "16:9",
       orientation: "landscape",
       crop: {
@@ -73,8 +73,8 @@ test("normalizes percentage mode by disabling fixed width", () => {
     rename: "listing",
     coverImagePath: null,
     cover: {
-      width: 1920,
-      height: 1080,
+      width: 1600,
+      height: 900,
       aspectRatio: "16:9",
       orientation: "landscape",
       crop: {

@@ -24,7 +24,7 @@ Click any thumbnail to see its metadata in the sidebar: filename, dimensions, fi
 
 ### Crop a dedicated cover image
 
-Promote one image to cover and switch into the crop workspace. Adjust aspect ratio, orientation, crop size, and output dimensions on a live preview. Changes are saved automatically and used when you process the batch from the gallery.
+Click the star on a thumbnail (or **Set as cover** in the sidebar) to open the crop workspace. Adjust aspect ratio, orientation, crop size, and output dimensions on a live preview; new covers start at 16:9, 1600 × 900. Click **Save cover** (or press Enter) to keep the crop, or **Cancel** to put back the previous one. The saved cover is shown in the sidebar with a preview of the crop, and it is created when you process the batch.
 
 ![Photopti cover crop editor with aspect controls and live crop overlay](assets/demo/Photo-Opti-demo-003.jpg)
 

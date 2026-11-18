@@ -1,4 +1,5 @@
 // End-to-end test that drives the real Electron app.
+/* global coverCrop -- renderer global read inside page.evaluate callbacks */
 // Run with `npm run test:e2e` (on Linux without a display: `xvfb-run -a npm run test:e2e`).
 // Set PHOTOPTI_SCREENSHOT_DIR to save screenshots of each step.
 const assert = require("assert");
@@ -85,20 +86,58 @@ test("adds a folder, crops a cover, and processes a batch in the real app", { ti
   await page.locator("#width").dispatchEvent("change");
   await screenshot(page, "02-gallery-selected");
 
-  // Promote a landscape image to cover and adjust the crop with the keyboard.
+  // Promote a landscape image to cover: defaults are 16:9 at 1600 x 900.
   const coverThumb = page.locator('.thumb[aria-label^="DSC_1004"]');
   await coverThumb.hover();
   await coverThumb.locator(".thumb-cover-action").click();
   await page.waitForSelector("#coverEditor:not(.hidden)");
   await page.waitForFunction(() => document.querySelector("#coverCropImage").naturalWidth > 0);
+  assert.equal(await page.inputValue("#coverAspect"), "16:9");
+  assert.equal(await page.inputValue("#coverWidth"), "1600");
+  assert.equal(await page.inputValue("#coverHeight"), "900");
+  assert.equal(await page.textContent("#coverEditState"), "New cover, not saved yet");
+  assert.equal(await page.isVisible("#saveCoverCrop"), true);
+  assert.equal(await page.isVisible("#process"), false);
+
+  // Adjust the crop with the keyboard, then save with Enter.
   await page.focus("#coverCropBox");
   for (let i = 0; i < 4; i++) await page.keyboard.press("Minus");
   for (let i = 0; i < 3; i++) await page.keyboard.press("Shift+ArrowRight");
   await page.keyboard.press("ArrowUp");
   await page.waitForTimeout(100);
   await screenshot(page, "03-cover-crop");
-  await page.keyboard.press("Escape");
+  const savedBox = await page.evaluate(() => JSON.stringify(coverCrop.box));
+  await page.keyboard.press("Enter");
   await page.waitForSelector("#thumbs:not(.hidden)");
+  assert.match(await page.textContent("#status"), /^Cover saved: DSC_1004\.jpg \(16:9 landscape · 1600 × 900 px\)/);
+  await page.waitForSelector("#coverSummary:not(.hidden)");
+  assert.equal(await page.textContent("#coverSummaryName"), "DSC_1004.jpg");
+  assert.equal(await page.textContent("#coverSummaryMeta"), "16:9 landscape · 1600 × 900 px");
+  await page.waitForFunction(() => Boolean(document.querySelector("#coverSummaryImage").getAttribute("src")));
+  await screenshot(page, "03b-cover-saved");
+
+  // Re-open with "Edit crop" and change it. A single Esc only warns; Cancel restores the saved crop.
+  await page.click("#editCover");
+  await page.waitForSelector("#coverEditor:not(.hidden)");
+  assert.equal(await page.textContent("#coverEditState"), "");
+  await page.focus("#coverCropBox");
+  await page.keyboard.press("Shift+ArrowLeft");
+  assert.equal(await page.textContent("#coverEditState"), "Unsaved changes");
+  await page.keyboard.press("Escape");
+  assert.equal(await page.textContent("#coverEditState"), "Press Esc again to discard your changes");
+  assert.equal(await page.isVisible("#coverEditor"), true);
+  await page.click("#cancelCoverCrop");
+  await page.waitForSelector("#thumbs:not(.hidden)");
+  assert.equal(await page.evaluate(() => JSON.stringify(coverCrop.box)), savedBox);
+  assert.match(await page.textContent("#status"), /Crop changes discarded/);
+
+  // Trying a different image as cover and cancelling keeps the saved cover.
+  await page.click('.thumb[aria-label^="DSC_1001"]');
+  await page.click("#selectedImageCoverAction");
+  await page.waitForSelector("#coverEditor:not(.hidden)");
+  await page.click("#cancelCoverCrop");
+  assert.equal(await page.textContent("#footerCover"), "DSC_1004.jpg");
+  assert.equal(await page.evaluate(() => JSON.stringify(coverCrop.box)), savedBox);
 
   // An invalid percentage is caught before anything is processed.
   await page.click('label.toggle:has(input[value="percentage"])');
@@ -122,6 +161,8 @@ test("adds a folder, crops a cover, and processes a batch in the real app", { ti
   const outputs = fs.readdirSync(outputDir).sort();
   assert.equal(outputs.length, 21);
   assert.ok(outputs.includes("cover-DSC_1004.jpg"));
+  const cover = await sharp(path.join(outputDir, "cover-DSC_1004.jpg")).metadata();
+  assert.deepEqual([cover.width, cover.height], [1600, 900]);
   assert.ok(!outputs.includes("corrupted-upload.jpg"));
   const phone = await sharp(path.join(outputDir, "IMG_0420 (phone).jpg")).metadata();
   assert.deepEqual([phone.width, phone.height], [1200, 1800]);

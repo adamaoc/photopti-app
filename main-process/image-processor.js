@@ -16,8 +16,8 @@ const { resolveInputPaths } = require("./file-discovery");
 const { createImageInput } = require("./image-input");
 const { getDefaultConcurrency, mapWithConcurrency } = require("./concurrency");
 
-const DEFAULT_COVER_WIDTH = 1920;
-const DEFAULT_COVER_HEIGHT = 1080;
+const DEFAULT_COVER_WIDTH = 1600;
+const DEFAULT_COVER_HEIGHT = 900;
 const DEFAULT_COVER_ASPECT_RATIO = "16:9";
 const MAX_IMAGE_DIMENSION = 20000;
 // Control characters and characters that are invalid in Windows file names.
