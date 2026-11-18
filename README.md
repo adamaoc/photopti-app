@@ -33,13 +33,17 @@ Promote one image to cover and switch into the crop workspace. Adjust aspect rat
 - Select image files or recursively discover images in a folder.
 - Resize by a target width or percentage and choose JPEG quality.
 - Optionally rename output files with a numbered sequence.
-- Review thumbnails, remove items, and designate one image as a cover.
-- Crop a cover to 16:9, 1:1, 4:3, or a free aspect ratio in landscape or portrait orientation.
-- Cancel a running batch and review file-level failures.
+- Add several folders and files at once, by drag and drop anywhere in the window or with the Add images / Add folder buttons.
+- Write JPEG, WebP, or AVIF output. Smaller images are not upscaled unless you ask for it, and transparent areas in JPEG output are filled with a background colour you choose.
+- Keep or strip metadata (EXIF, copyright, colour profile).
+- Review thumbnails, remove items, and designate one image as a cover. Large folders load in pages, so every image stays reachable.
+- Crop a cover to 16:9, 1:1, 4:3, or a free aspect ratio in landscape or portrait orientation, with the mouse or the keyboard.
+- See how much space a batch saved, open the output folder, review file-level failures, and process again with different settings.
+- Cancel a running batch. Batch settings are remembered between sessions.
 
-Photopti accepts PNG, JPEG, WebP, GIF, TIFF, BMP, AVIF, HEIC, and HEIF input. Output is JPEG. Animated inputs are not preserved as animations.
+Photopti accepts PNG, JPEG, WebP, GIF, TIFF, BMP, AVIF, HEIC, and HEIF input. Photos are rotated upright using their EXIF orientation. Animated inputs are not preserved as animations.
 
-All processing happens on the local computer. Source files are never modified. By default, results are written to an `Opti/` directory beside the selected folder or files; the output directory name can be changed. When selected files span multiple directories, the app asks for an output location. Existing output names are preserved and new files receive a numeric suffix instead of being overwritten.
+All processing happens on the local computer. Source files are never modified. By default, results are written to an `Opti/` directory inside the selected folder (or the folder that holds the selected files); the output directory name can be changed, and images already inside it are never picked up again. When images come from unrelated folders, the app asks for an output location. Existing output names are preserved and new files receive a numeric suffix instead of being overwritten. Hidden files, such as macOS `._` sidecar files, are skipped.
 
 ## Install a release
 
@@ -51,7 +55,7 @@ Current releases may be unsigned. On macOS, Gatekeeper may block an unsigned bui
 
 Prerequisites:
 
-- Node.js 20 or 22 and npm
+- Node.js 22.12 or newer (22 or 24 LTS) and npm
 - Git
 - Platform build tools if a native dependency cannot use a prebuilt binary
 
@@ -72,7 +76,16 @@ Run the complete automated check:
 npm run check
 ```
 
-This performs a JavaScript syntax check and runs the Node test suite. The tests cover discovery, dialogs, thumbnails, batch processing, cancellation, error summaries, gallery behavior, crop geometry, and generated cover dimensions.
+This runs a syntax check, ESLint, and the Node test suite. The tests cover discovery, dialogs, IPC and window hardening, thumbnails, orientation, output formats, batch processing, cancellation, error summaries, gallery behavior, crop geometry, and generated cover dimensions.
+
+End-to-end tests drive the real Electron app with Playwright:
+
+```bash
+npm run test:e2e                  # macOS / Windows, or Linux with a display
+xvfb-run -a npm run test:e2e      # headless Linux
+```
+
+Set `PHOTOPTI_SCREENSHOT_DIR=/some/folder` to save a screenshot of each step. Set `PHOTOPTI_DEVTOOLS=1` with `npm start` to open DevTools in development.
 
 ## Build packages
 
@@ -99,15 +112,16 @@ assets/                 Application logo, platform icons, and demo screenshots
 build/                  Packaging entitlements and notarization hook
 scripts/                Repository checks
 test/                   Node test suite
+e2e/                    Playwright tests that drive the Electron app
 docs/                   Maintainer documentation
 ```
 
 ## Status and limitations
 
-Photopti is usable but is preparing for its first broadly supported public release. Processing is sequential, folder discovery is capped at 10,000 files and 12 directory levels, and output is always JPEG. Metadata and animation are not intentionally preserved. Automated tests do not replace hands-on testing of packaged builds or every source codec on macOS, Windows, and Linux.
+Photopti is usable but is preparing for its first broadly supported public release. Folder discovery is capped at 10,000 files and 12 directory levels (the app tells you when it stops early). Output from nested folders is written to a single flat output folder. Animation is not preserved, and HEIC metadata is not carried over. Automated tests do not replace hands-on testing of packaged builds or every source codec on macOS, Windows, and Linux.
 
 ## Contributing and support
 
 Read [CONTRIBUTING.md](CONTRIBUTING.md) before submitting a change. Use the issue templates to [report a bug](https://github.com/adamaoc/photopti-app/issues/new/choose) or request a feature. Report vulnerabilities privately as described in [SECURITY.md](SECURITY.md).
 
-Photopti is available under the [MIT License](LICENSE). It is built with [Electron](https://www.electronjs.org/), [Sharp](https://sharp.pixelplumbing.com/), and [heic-convert](https://github.com/catdad-experiments/heic-convert). The Photopti name, logo, and icon assets are maintained as project-owned assets and are not granted for unrelated branding by the MIT license covering the source code.
+Photopti is available under the [MIT License](LICENSE). It is built with [Electron](https://www.electronjs.org/), [Sharp](https://sharp.pixelplumbing.com/), and [heic-decode](https://github.com/catdad-experiments/heic-decode). The Photopti name, logo, and icon assets are maintained as project-owned assets and are not granted for unrelated branding by the MIT license covering the source code.
