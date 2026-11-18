@@ -46,3 +46,21 @@ test("returns null thumbnails for files that fail generation", async () => {
     assert.deepEqual(thumbnails, { [source]: null });
   });
 });
+
+test("creates upright thumbnails for EXIF-rotated photos", async () => {
+  const { withTempDir, writeImage } = require("./helpers");
+  await withTempDir(async (dir) => {
+    const source = await writeImage(path.join(dir, "phone.jpg"), {
+      width: 400,
+      height: 200,
+      format: "jpeg",
+      orientation: 6,
+    });
+
+    const dataUrl = await createThumbnail(source, 100);
+    const metadata = await sharp(Buffer.from(dataUrl.split(",")[1], "base64")).metadata();
+
+    assert.equal(metadata.width, 50);
+    assert.equal(metadata.height, 100);
+  });
+});

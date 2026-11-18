@@ -47,6 +47,10 @@ test("normalizes missing process options to current defaults", () => {
       },
       suffix: "cover",
     },
+    format: "jpeg",
+    background: "#ffffff",
+    enlarge: false,
+    keepMetadata: false,
   });
 });
 
@@ -81,6 +85,10 @@ test("normalizes percentage mode by disabling fixed width", () => {
       },
       suffix: "cover",
     },
+    format: "jpeg",
+    background: "#ffffff",
+    enlarge: false,
+    keepMetadata: false,
   });
 });
 
