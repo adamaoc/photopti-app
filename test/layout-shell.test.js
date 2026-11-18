@@ -9,6 +9,7 @@ const html = fs.readFileSync(path.join(root, 'renderer', 'index.html'), 'utf8');
 const css = fs.readFileSync(path.join(root, 'renderer', 'styles.css'), 'utf8');
 const renderer = fs.readFileSync(path.join(root, 'renderer', 'renderer.js'), 'utf8');
 const cropGeometry = fs.readFileSync(path.join(root, 'renderer', 'crop-geometry.js'), 'utf8');
+const rendererUtils = fs.readFileSync(path.join(root, 'renderer', 'renderer-utils.js'), 'utf8');
 
 function createElement() {
   const attributes = new Map();
@@ -54,6 +55,7 @@ function createRendererSandbox() {
   };
   vm.createContext(sandbox);
   vm.runInContext(cropGeometry, sandbox);
+  vm.runInContext(rendererUtils, sandbox);
   vm.runInContext(renderer, sandbox);
   return {
     elements,
@@ -128,27 +130,25 @@ test('crop overlay keeps fitted bounds and refreshes after layout changes', () =
   assert.match(renderer, /new ResizeObserver\(updateCoverCropUI\)\.observe\(stage\)/);
 });
 
-test('summarizes empty, single, shared-folder, and multi-folder sources', () => {
+test('summarizes empty, single, nested, and multi-folder sources', () => {
   const { run } = createRendererSandbox();
 
   assert.equal(run('getSourceSummary([])'), 'No source selected');
-  assert.equal(run("getSourceSummary(['/photos/one.jpg'])"), '/photos/one.jpg');
+  assert.equal(run("getSourceSummary(['/photos'])"), '/photos');
+  assert.equal(run("getSourceSummary(['/photos', '/photos'])"), '/photos');
+  assert.equal(run("getSourceSummary(['/photos', '/photos/2024/june'])"), '/photos');
   assert.equal(
-    run("getSourceSummary(['/photos/one.jpg', '/photos/two.jpg'])"),
-    '/photos'
-  );
-  assert.equal(
-    run("getSourceSummary(['/photos/one.jpg', '/exports/two.jpg'])"),
+    run("getSourceSummary(['/photos', '/exports'])"),
     'Multiple folders (2)'
   );
 });
 
 test('updates accessible footer stats without replacing full paths with ellipses', () => {
   const { elements, run } = createRendererSandbox();
-  const longSource = `/photos/${'nested/'.repeat(12)}one.jpg`;
+  const longSource = `/photos/${'nested/'.repeat(12)}album`;
   const coverPath = '/photos/covers/hero-image.jpg';
 
-  run(`droppedPaths = [${JSON.stringify(longSource)}]; imagePaths = ['/photos/one.jpg', '/photos/two.jpg']; coverImagePath = ${JSON.stringify(coverPath)}; updateFooterStats()`);
+  run(`sourceRoots = [${JSON.stringify(longSource)}]; imagePaths = ['/photos/one.jpg', '/photos/two.jpg']; coverImagePath = ${JSON.stringify(coverPath)}; updateFooterStats()`);
 
   const source = elements.get('#footerSource');
   const count = elements.get('#footerImageCount');
@@ -164,7 +164,7 @@ test('updates accessible footer stats without replacing full paths with ellipses
   assert.equal(cover.title, coverPath);
   assert.equal(cover.getAttribute('aria-label'), `Cover: ${coverPath}`);
 
-  run('droppedPaths = []; imagePaths = []; coverImagePath = null; updateFooterStats()');
+  run('sourceRoots = []; imagePaths = []; coverImagePath = null; updateFooterStats()');
   assert.equal(source.textContent, 'No source selected');
   assert.equal(count.textContent, '0');
   assert.equal(coverStat.classList.contains('hidden'), true);
@@ -179,7 +179,7 @@ test('removing the last photo clears stale multi-folder controls and footer stat
   elements.get('#dropzone').classList.add('hidden');
   elements.get('#folderSelection').classList.remove('hidden');
 
-  run("droppedPaths = ['/photos/one.jpg', '/exports']; imagePaths = ['/photos/one.jpg']; coverImagePath = '/photos/one.jpg'; removePhoto('/photos/one.jpg')");
+  run("sourceRoots = ['/photos', '/exports']; imagePaths = ['/photos/one.jpg']; coverImagePath = '/photos/one.jpg'; removePhoto('/photos/one.jpg')");
 
   assert.equal(elements.get('#folderSelection').classList.contains('hidden'), true);
   assert.equal(elements.get('#footerSource').textContent, 'No source selected');
