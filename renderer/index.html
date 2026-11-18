@@ -3,6 +3,10 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' file: data:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'"
+    />
     <title>Photopti</title>
     <link rel="stylesheet" href="styles.css" />
   </head>
@@ -29,30 +33,46 @@
           </div>
           <p class="drop-destination">
             Supported images will be optimized into an
-            <span class="accent">Opti</span> folder
+            <span id="outputNameHint" class="accent">Opti</span> folder
           </p>
         </div>
         <div id="coverEditor" class="cover-editor hidden">
           <div class="cover-editor-header">
-            <button id="backToGallery" class="back-to-gallery" type="button" aria-label="Back to gallery">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
-                <path d="m15 18-6-6 6-6"></path>
-              </svg>
-              Back to gallery
-            </button>
-            <div>
-              <h2>Cover crop</h2>
-              <p id="coverEditorFile"></p>
+            <div class="cover-editor-title">
+              <h2>Edit cover crop</h2>
+              <p>
+                <span id="coverEditorFile"></span>
+                <span id="coverEditState" class="crop-state" role="status"></span>
+              </p>
             </div>
           </div>
+          <p id="coverCropHelp" class="crop-help">
+            Drag to move and drag the corner to resize. With the crop focused, arrow keys move it
+            (hold Shift for larger steps) and + and − resize. Enter saves the cover; Esc cancels.
+          </p>
           <div id="coverCropStage" class="cover-crop-stage">
             <img id="coverCropImage" alt="Cover crop preview" />
-            <div id="coverCropBox" class="cover-crop-box">
+            <div
+              id="coverCropBox"
+              class="cover-crop-box"
+              tabindex="0"
+              role="group"
+              aria-label="Cover crop area"
+              aria-describedby="coverCropHelp"
+            >
               <div class="cover-crop-grid" aria-hidden="true"></div>
               <div id="coverCropHandle" class="cover-crop-handle"></div>
             </div>
           </div>
         </div>
+        <div id="galleryToolbar" class="gallery-toolbar hidden">
+          <span id="galleryCount" class="gallery-count"></span>
+          <div class="gallery-toolbar-actions">
+            <button id="addImages" class="button-outline button-small" type="button">Add images</button>
+            <button id="addFolder" class="button-outline button-small" type="button">Add folder</button>
+          </div>
+        </div>
+        <p id="discoveryNotice" class="notice hidden" role="status"></p>
         <div id="thumbs" class="thumbs hidden" aria-live="polite"></div>
       </section>
 
@@ -67,7 +87,7 @@
             <span class="custom-radio" aria-hidden="true"></span>
             <span class="toggle-label">Resize to width</span>
           </label>
-          <input id="width" type="number" min="1" value="800" class="input" />
+          <input id="width" type="number" min="1" max="20000" step="1" value="800" class="input" aria-label="Width in pixels" />
           <span class="hint">px</span>
         </div>
         <div class="row">
@@ -83,12 +103,13 @@
             max="1000"
             placeholder="e.g. 50"
             class="input"
+            aria-label="Resize percentage"
             disabled
           />
           <span class="hint">%</span>
         </div>
         <div class="row">
-          <label>Quality</label>
+          <label for="quality">Quality</label>
           <input
             id="quality"
             class="range"
@@ -100,20 +121,44 @@
           <span id="qualityValue" class="hint">80</span>
         </div>
         <div class="row">
-          <label>Rename base (optional)</label>
+          <label for="format">Format</label>
+          <select id="format" class="input">
+            <option value="jpeg">JPEG</option>
+            <option value="webp">WebP</option>
+            <option value="avif">AVIF</option>
+          </select>
+          <span id="backgroundRow" class="inline-field">
+            <label for="background" class="hint">Background</label>
+            <input id="background" type="color" class="color-input" value="#ffffff" title="Fill colour for transparent areas (JPEG has no transparency)" />
+          </span>
+        </div>
+        <div class="row row-tight">
+          <label class="check">
+            <input id="enlarge" type="checkbox" />
+            <span>Upscale images smaller than the target width</span>
+          </label>
+        </div>
+        <div class="row row-tight">
+          <label class="check">
+            <input id="keepMetadata" type="checkbox" />
+            <span>Keep metadata (EXIF, copyright, colour profile)</span>
+          </label>
+        </div>
+        <div class="row">
+          <label for="rename">Rename base (optional)</label>
           <input id="rename" type="text" placeholder="photo" class="input" />
         </div>
         <div class="row">
-          <label>Output folder</label>
+          <label for="output">Output folder</label>
           <input id="output" type="text" class="input" value="Opti" />
         </div>
         <div id="folderSelection" class="folder-selection hidden">
           <div class="folder-selection-header">
-            <label>Files are from multiple folders</label>
+            <p class="folder-selection-title">Images come from multiple folders. Choose where to save the output.</p>
           </div>
           <div class="folder-selection-content">
             <button id="folderSelectBtn" class="button-outline" type="button">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
                 <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
               </svg>
               Select output folder
@@ -121,11 +166,32 @@
             <div id="folderDisplay" class="folder-display hidden"></div>
           </div>
         </div>
+        <div id="coverSummary" class="cover-summary hidden">
+          <div class="sidebar-separator" aria-hidden="true"></div>
+          <div class="cover-summary-heading">
+            <h3>Cover image</h3>
+            <span class="cover-summary-badge">Saved</span>
+          </div>
+          <div class="cover-summary-body">
+            <div id="coverSummaryPreview" class="cover-summary-preview">
+              <img id="coverSummaryImage" alt="" />
+            </div>
+            <div class="cover-summary-text">
+              <p id="coverSummaryName" class="cover-summary-name"></p>
+              <p id="coverSummaryMeta" class="hint"></p>
+              <div class="cover-summary-actions">
+                <button id="editCover" class="button-outline button-small" type="button">Edit crop</button>
+                <button id="removeCover" class="button-outline button-small" type="button">Remove cover</button>
+              </div>
+            </div>
+          </div>
+        </div>
         <div id="selectedImageInfo" class="selected-image-info hidden" aria-live="polite">
           <div class="sidebar-separator" aria-hidden="true"></div>
           <div class="selected-image-heading">
             <h3>Selected image</h3>
             <p id="selectedImageRole" class="selected-image-role hidden">Cover image</p>
+            <button id="selectedImageCoverAction" class="button-outline button-small" type="button">Set as cover</button>
           </div>
           <dl class="selected-image-details">
             <div class="selected-image-detail">
@@ -154,8 +220,9 @@
         <div id="coverControls" class="cover-controls hidden">
           <div class="control-heading">
             <h2>Cover crop</h2>
-            <p class="auto-save-note" role="status">
-              Changes are saved automatically and will be used when you process images from the gallery.
+            <p class="auto-save-note">
+              Click <strong>Save cover</strong> to keep this crop for the next batch.
+              <strong>Cancel</strong> puts back the crop you had before.
             </p>
           </div>
           <div class="cover-control-row">
@@ -187,14 +254,28 @@
           </div>
           <div class="cover-control-row">
             <label for="coverWidth">Output</label>
-            <input id="coverWidth" type="number" min="1" max="20000" step="1" value="1920" class="input small-input" />
+            <input id="coverWidth" type="number" min="1" max="20000" step="1" value="1600" class="input small-input" />
             <span class="hint">x</span>
-            <input id="coverHeight" type="number" min="1" max="20000" step="1" value="1080" class="input small-input" />
+            <input id="coverHeight" type="number" min="1" max="20000" step="1" value="900" class="input small-input" />
           </div>
         </div>
         <div id="status" class="status" role="status"></div>
         <div id="progressWrap" class="progress-wrap hidden">
           <div id="progressBar" class="progress"></div>
+        </div>
+        <div id="results" class="results hidden" aria-live="polite">
+          <p id="resultsSavings" class="results-savings"></p>
+          <p id="resultsOutput" class="results-output"></p>
+          <button id="openOutput" class="button-outline button-small" type="button">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+              <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+            </svg>
+            Show in folder
+          </button>
+          <details id="failureDetails" class="failure-details hidden">
+            <summary id="failureSummary"></summary>
+            <ul id="failureList"></ul>
+          </details>
         </div>
       </section>
         </main>
@@ -224,11 +305,15 @@
           </div>
         </div>
         <div class="actions-footer">
-          <button id="process" class="button">Process images</button>
-          <button id="cancel" class="button-outline hidden" type="button">
+          <div id="cropActions" class="crop-actions">
+            <button id="cancelCoverCrop" class="button-outline" type="button">Cancel</button>
+            <button id="saveCoverCrop" class="button" type="button">Save cover</button>
+          </div>
+          <button id="process" class="button gallery-action" type="button">Process images</button>
+          <button id="cancel" class="button-outline gallery-action hidden" type="button">
             Cancel
           </button>
-          <button id="reset" class="button-outline hidden" title="Reset">
+          <button id="reset" class="button-outline gallery-action hidden" type="button" title="Clear all images and start over">
             <svg
               class="reset-icon"
               width="16"
@@ -251,6 +336,7 @@
     </div>
 
     <script src="crop-geometry.js"></script>
+    <script src="renderer-utils.js"></script>
     <script src="renderer.js"></script>
   </body>
 </html>

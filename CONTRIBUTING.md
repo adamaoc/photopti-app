@@ -4,7 +4,7 @@ Thanks for helping improve Photopti. Keep changes focused, explain user-visible 
 
 ## Setup
 
-Use Node.js 20 or 22 and npm:
+Use Node.js 22.12 or newer (22 or 24 LTS) and npm:
 
 ```bash
 git clone https://github.com/adamaoc/photopti-app.git
@@ -19,8 +19,8 @@ npm start
 1. Search existing issues before opening a duplicate. For substantial changes, open an issue before investing in implementation.
 2. Create a short-lived branch from the default branch. Use a descriptive name such as `fix/heic-error-message`.
 3. Follow the existing CommonJS and plain JavaScript style. Prefer small functions and existing modules over new dependencies.
-4. Add or update Node tests under `test/`. Manually exercise affected Electron interactions when UI or packaging behavior changes.
-5. Run `npm run check`. For release or packaging changes, also build the package for your host platform.
+4. Add or update Node tests under `test/`. For UI flows, extend the Playwright tests under `e2e/` and also exercise the change by hand.
+5. Run `npm run check` and `npm run test:e2e` (on headless Linux: `xvfb-run -a npm run test:e2e`). For release or packaging changes, also build the package for your host platform.
 6. Use concise, imperative commit subjects. Keep formatting-only or unrelated refactors out of a functional change.
 
 ## Pull requests

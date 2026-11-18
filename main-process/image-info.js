@@ -1,11 +1,10 @@
 const fs = require("fs");
 const path = require("path");
-const { createThumbnailInput } = require("./thumbnails");
+const { readImageMetadata } = require("./image-input");
 
 async function getImageInfo(filePath) {
   const stats = await fs.promises.stat(filePath);
-  const input = await createThumbnailInput(filePath);
-  const metadata = await input.metadata();
+  const metadata = await readImageMetadata(filePath);
   const parsed = path.parse(filePath);
 
   return {

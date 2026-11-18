@@ -40,3 +40,20 @@ test("reads image metadata for the sidebar", async () => {
     assert.equal(info.path, source);
   });
 });
+test("reports upright dimensions for EXIF-rotated photos", async () => {
+  const { withTempDir, writeImage } = require("./helpers");
+  await withTempDir(async (dir) => {
+    const source = await writeImage(path.join(dir, "phone.jpg"), {
+      width: 400,
+      height: 200,
+      format: "jpeg",
+      orientation: 6,
+    });
+
+    const info = await getImageInfo(source);
+
+    assert.equal(info.width, 200);
+    assert.equal(info.height, 400);
+    assert.equal(info.format, "JPEG");
+  });
+});

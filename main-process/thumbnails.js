@@ -1,12 +1,12 @@
-const sharp = require("sharp");
-const fs = require("fs");
-const path = require("path");
-const heicConvert = require("heic-convert");
-const { HEIC_FORMATS } = require("./constants");
+const { createImageInput } = require("./image-input");
+const { mapWithConcurrency } = require("./concurrency");
 
 const thumbnailCache = new Map();
 const MAX_CACHE_ITEMS = 600;
 const DEFAULT_THUMBNAIL_SIZE = 220;
+const MAX_THUMBNAIL_SIZE = 1024;
+// Bounds memory use: HEIC decoding in particular holds a full RGBA frame.
+const THUMBNAIL_CONCURRENCY = 4;
 
 function getCacheKey(filePath, size) {
   return `${size}:${filePath}`;
@@ -30,12 +30,13 @@ async function createThumbnail(filePath, size = DEFAULT_THUMBNAIL_SIZE) {
     return thumbnailCache.get(key);
   }
 
-  const input = await createThumbnailInput(filePath);
+  const input = await createImageInput(filePath, { failOn: "none" });
   const buffer = await input
     .resize(size, size, {
       fit: "inside",
       withoutEnlargement: true,
     })
+    .flatten({ background: "#1c1e22" })
     .jpeg({ quality: 72, mozjpeg: true })
     .toBuffer();
 
@@ -44,42 +45,35 @@ async function createThumbnail(filePath, size = DEFAULT_THUMBNAIL_SIZE) {
   return dataUrl;
 }
 
-async function createThumbnailInput(filePath) {
-  const ext = path.parse(filePath).ext.toLowerCase();
-  if (!HEIC_FORMATS.has(ext)) {
-    return sharp(filePath, { failOn: "none" });
-  }
-
-  const heicBuffer = await fs.promises.readFile(filePath);
-  const convertedBuffer = await heicConvert({
-    buffer: heicBuffer,
-    format: "JPEG",
-    quality: 0.72,
-  });
-  return sharp(convertedBuffer, { failOn: "none" });
+function normalizeThumbnailSize(size) {
+  const number = Number(size);
+  if (!Number.isInteger(number) || number < 16) return DEFAULT_THUMBNAIL_SIZE;
+  return Math.min(number, MAX_THUMBNAIL_SIZE);
 }
 
 async function getThumbnails(paths, options = {}) {
-  const size = options.size || DEFAULT_THUMBNAIL_SIZE;
+  const size = normalizeThumbnailSize(options.size);
   const results = {};
 
   if (!Array.isArray(paths)) return results;
 
-  await Promise.all(
-    paths.map(async (filePath) => {
-      try {
-        results[filePath] = await createThumbnail(filePath, size);
-      } catch (error) {
-        results[filePath] = null;
-      }
-    })
-  );
+  await mapWithConcurrency(paths, THUMBNAIL_CONCURRENCY, async (filePath) => {
+    try {
+      results[filePath] = await createThumbnail(filePath, size);
+    } catch (error) {
+      results[filePath] = null;
+    }
+  });
 
   return results;
 }
 
+function clearThumbnailCache() {
+  thumbnailCache.clear();
+}
+
 module.exports = {
+  clearThumbnailCache,
   createThumbnail,
-  createThumbnailInput,
   getThumbnails,
 };
